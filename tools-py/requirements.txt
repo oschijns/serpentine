@@ -1,0 +1,4 @@
+Jinja2
+numpy
+numba
+imageio

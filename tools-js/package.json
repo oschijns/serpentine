@@ -1,0 +1,15 @@
+{
+  "name": "lunaire",
+  "version": "0.0.1",
+  "description": "Toolset for Lunaire",
+  "keywords": [
+    "lunaire",
+    "asm",
+    "vgm"
+  ],
+  "author": "Olivier Schyns",
+  "license": "MIT",
+  "dependencies": {
+    "vgm-parser": "^0.12.0-beta.0"
+  }
+}

@@ -40,7 +40,7 @@ env = Environment(
 
 	# Linker config
 	LINK = 'ld65',
-	LINKFLAGS = ['-C', 'config/nrom_32k_vert.cfg', '-Ln', 'build/labels.txt', '--dbgfile', 'build/dbg.txt'],
+	LINKFLAGS = ['-C', 'config/nrom_32k_vert.cfg'],
 )
 
 env.Append(BUILDERS = {
@@ -51,8 +51,8 @@ env.Append(BUILDERS = {
 
 # Run the tools
 #tools = Glob('tool/*.py')
-import tool.make_src
-tool.make_src.main()
+#import tool.make_src
+#tool.make_src.main()
 
 # Get the sources both written and generated
 sources_c = Glob('src/*.c') + Glob('gen/*.c')
@@ -60,12 +60,14 @@ sources_s = Glob('src/*.s') + Glob('gen/*.s')
 objects = []
 
 # Compile the sources to assembly scripts
+"""
 for c_src in sources_c:
     filename = '{}/{}'.format(build_directory, Path(c_src.name).stem)
     asm = env.Compile(filename, c_src)
     obj = env.Assemble(filename, asm)
     objects.append(obj)
-
+"""
+ 
 # Assemble the sources to object files
 for asm in sources_s:
     filename = '{}/{}'.format(build_directory, Path(asm.name).stem)
