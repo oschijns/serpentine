@@ -1,78 +1,103 @@
-#!/usr/bin/env python
+#! builder/env/bin/python3
 
-import os
-import sys
-from pathlib import Path
+import SCons
+from SCons.Builder import Builder
+from pathlib       import Path
+import jinja2
 
-# Set the build directory
-build_directory = 'build'
-
-# 6502 compiler step
-mos_compiler = Builder(
-    action = '$CC $CCFLAGS $_CCCOMCOM -o $TARGET $SOURCE',
-    src_suffix = '.c',
-    suffix = '.s'
-)
-
-# 6502 assembler step
-mos_assembler = Builder(
-    action = '$AS $ASFLAGS -o $TARGET $SOURCE',
-    src_suffix = '.s',
-    suffix = '.o'
-)
-
-# 6502 linker step
-mos_linker = Builder(
-    action = '$LINK $LINKFLAGS -o $TARGET $SOURCES nes.lib',
-    src_suffix = '.o',
-    suffix = '.nes'
-)
 
 # Specify the compiler, assembler and linker to use
-env = Environment(
+env_s = SCons.Environment.Environment(
 	# C config
 	CC      = 'cc65',
-	CCFLAGS = ['-I', 'include', '-Oirs', '--add-source', '--cpu', '6502'],
+	CCFLAGS = ['-I', 'libs/nesdoug', '-Oirs', '--add-source', '--cpu', '6502'],
 
 	# ASM config
 	AS      = 'ca65',
-	ASFLAGS = ['-I', 'include', '-I', 'assets', '-g'],
+	ASFLAGS = ['-I', 'libs/nesdoug', '-g'],
 
 	# Linker config
 	LINK = 'ld65',
-	LINKFLAGS = ['-C', 'config/nrom_32k_vert.cfg'],
+	LINKFLAGS = ['-C', 'libs/nesdoug/nrom_32k_vert.cfg'],
 )
 
-env.Append(BUILDERS = {
-    'Compile': mos_compiler,
-    'Assemble': mos_assembler, 
-    'Link': mos_linker
+
+# Set the output directory
+build_directory = Path('output')
+
+
+# Define the compiler step
+compiler = Builder(
+    action     = '$CC $CCFLAGS $_CCCOMCOM -o $TARGET $SOURCE',
+    src_suffix = '.c',
+    suffix     = '.s'
+)
+
+
+# Define the assembler step
+assembler = Builder(
+    action     = '$AS $ASFLAGS -o $TARGET $SOURCE',
+    src_suffix = '.s',
+    suffix     = '.o'
+)
+
+
+# Define the linker step
+linker = Builder(
+    action     = '$LINK $LINKFLAGS -o $TARGET $SOURCES nes.lib',
+    src_suffix = '.o',
+    suffix     = '.nes'
+)
+
+
+env_s.Append(BUILDERS = {
+    'Compile'  : compiler,
+    'Assemble' : assembler, 
+    'Link'     : linker
 })
 
-# Run the tools
-#tools = Glob('tool/*.py')
-#import tool.make_src
-#tool.make_src.main()
 
 # Get the sources both written and generated
-sources_c = Glob('src/*.c') + Glob('gen/*.c')
-sources_s = Glob('src/*.s') + Glob('gen/*.s')
+sources_j2_c   = env_s.Glob('src/*.c.j2')
+sources_j2_asm = env_s.Glob('src/*.s.j2')
+sources_c      = env_s.Glob('src/*.c') + env_s.Glob('output/gen/*.c')
+sources_asm    = env_s.Glob('src/*.s') + env_s.Glob('output/gen/*.s')
 objects = []
 
+
+#env_j = jinja2.Environment(
+#    loader = jinja2.PackageLoader('snaker')
+#)
+
+
+# Convert templates into sources
+for src_j2 in sources_j2_c:
+    path = str(build_directory / Path(src_j2.name).stem)
+    print(f'- {src_j2}')
+
+
+# Convert templates into sources
+for src_j2 in sources_j2_asm:
+    path = str(build_directory / Path(src_j2.name).stem)
+    print(f'- {src_j2}')
+
+
 # Compile the sources to assembly scripts
-"""
-for c_src in sources_c:
-    filename = '{}/{}'.format(build_directory, Path(c_src.name).stem)
-    asm = env.Compile(filename, c_src)
-    obj = env.Assemble(filename, asm)
-    objects.append(obj)
-"""
- 
-# Assemble the sources to object files
-for asm in sources_s:
-    filename = '{}/{}'.format(build_directory, Path(asm.name).stem)
-    obj = env.Assemble(filename, asm)
+for src_c in sources_c:
+    path = str(build_directory / Path(src_c.name).stem)
+    print(f'- {src_c}')
+    asm = env_s.Compile (path, src_c)
+    obj = env_s.Assemble(path, asm)
     objects.append(obj)
 
+
+# Assemble the sources to object files
+for src_asm in sources_asm:
+    path = str(build_directory / Path(src_asm.name).stem)
+    print(f'- {src_asm}')
+    obj = env_s.Assemble(path, src_asm)
+    objects.append(obj)
+
+
 # Link the object files
-env.Link('test.nes', objects)
+env_s.Link('test.nes', objects)

@@ -1,3 +1,4 @@
+SCons
 Jinja2
 numpy
 numba

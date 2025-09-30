@@ -1,9 +1,9 @@
 {
-  "name": "lunaire",
+  "name": "snaker-music-tool",
   "version": "0.0.1",
-  "description": "Toolset for Lunaire",
+  "description": "Music converter for Snaker",
   "keywords": [
-    "lunaire",
+    "snaker",
     "asm",
     "vgm"
   ],
