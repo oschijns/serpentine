@@ -9,6 +9,9 @@
 #include "neslib.h"
 #include "nesdoug.h" 
 
+// use file generated from template
+#include "vector_2_fix16.h"
+
 #define BLACK 0x0f
 #define DK_GY 0x00
 #define LT_GY 0x10
@@ -23,24 +26,29 @@
 // all variables should be global for speed
 // zeropage global is even faster
 
-unsigned char i;
+u8 i;
 
 
 
-const unsigned char text[]="SnakeR!"; // zero terminated c string
+const u8 text [] = "SnakeR!"; // zero terminated c string
 
-const unsigned char palette[]={
-BLACK, DK_GY, LT_GY, WHITE,
-0,0,0,0,
-0,0,0,0,
-0,0,0,0
+const u8 palette [] =
+{
+	BLACK, DK_GY, LT_GY, WHITE,
+	0,0,0,0,
+	0,0,0,0,
+	0,0,0,0
 }; 
 
 
-
+Vec2fix16 other;
 	
 
-void main (void) {
+void main (void)
+{
+	acc_vec_2_fix16.coords[0] = 0;
+	acc_vec_2_fix16.coords[1] = 0;
+	add_vec2_fix16(other);
 	
 	ppu_off(); // screen off
 
@@ -51,7 +59,8 @@ void main (void) {
 	vram_adr(NTADR_A(10,14)); // screen is 32 x 30 tiles
 
 	i = 0;
-	while(text[i]){
+	while(text[i])
+	{
 		vram_put(text[i]); // this pushes 1 char to the screen
 		++i;
 	}	
@@ -64,7 +73,8 @@ void main (void) {
 	ppu_on_all(); //	turn on screen
 	
 	
-	while (1){
+	while (1)
+	{
 		// infinite loop
 		// game code can go here later.
 		

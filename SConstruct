@@ -1,5 +1,8 @@
 #! builder/env/bin/python3
 
+import re
+import json
+import yaml
 import SCons
 from SCons.Builder import Builder
 from pathlib       import Path
@@ -7,14 +10,14 @@ import jinja2
 
 
 # Specify the compiler, assembler and linker to use
-env_s = SCons.Environment.Environment(
+env_sc = SCons.Environment.Environment(
 	# C config
 	CC      = 'cc65',
-	CCFLAGS = ['-I', 'libs/nesdoug', '-Oirs', '--add-source', '--cpu', '6502'],
+	CCFLAGS = ['-I', 'libs/nesdoug', '-I', 'output/gen', '-Oirs', '--add-source', '--cpu', '6502'],
 
 	# ASM config
 	AS      = 'ca65',
-	ASFLAGS = ['-I', 'libs/nesdoug', '-g'],
+	ASFLAGS = ['-I', 'libs/nesdoug', '-I', 'output/gen', '-g'],
 
 	# Linker config
 	LINK = 'ld65',
@@ -50,7 +53,7 @@ linker = Builder(
 )
 
 
-env_s.Append(BUILDERS = {
+env_sc.Append(BUILDERS = {
     'Compile'  : compiler,
     'Assemble' : assembler, 
     'Link'     : linker
@@ -58,36 +61,51 @@ env_s.Append(BUILDERS = {
 
 
 # Get the sources both written and generated
-sources_j2_c   = env_s.Glob('src/*.c.j2')
-sources_j2_asm = env_s.Glob('src/*.s.j2')
-sources_c      = env_s.Glob('src/*.c') + env_s.Glob('output/gen/*.c')
-sources_asm    = env_s.Glob('src/*.s') + env_s.Glob('output/gen/*.s')
+sources_j2  = env_sc.Glob('src/*.j2')
+sources_c   = env_sc.Glob('src/*.c') + env_sc.Glob('output/gen/*.c')
+sources_asm = env_sc.Glob('src/*.s') + env_sc.Glob('output/gen/*.s')
 objects = []
 
 
-#env_j = jinja2.Environment(
-#    loader = jinja2.PackageLoader('snaker')
-#)
+# Decompose the source file into its name, extension
+regex_j2 = re.compile(r'(\w+)\.(\w+)\.j2$')
+
+
+# Load Jinja2 templates
+loader = jinja2.FileSystemLoader(searchpath = 'src/')
+env_j2 = jinja2.Environment(loader = loader)
 
 
 # Convert templates into sources
-for src_j2 in sources_j2_c:
-    path = str(build_directory / Path(src_j2.name).stem)
+for src_j2 in sources_j2:
     print(f'- {src_j2}')
 
+    # check target extension
+    m = regex_j2.search(src_j2.name)
+    if m is not None:
+        name = str(m.group(1))
+        ext  = str(m.group(2))
+        path = str(build_directory / 'gen' / name)
 
-# Convert templates into sources
-for src_j2 in sources_j2_asm:
-    path = str(build_directory / Path(src_j2.name).stem)
-    print(f'- {src_j2}')
+        # load the template and render it
+        template = env_j2.get_template(str(src_j2.name))
+        render   = template.render({
+            # arbitrary data expected by the template
+            'dim': 2, 
+            'num': 'fix16', 
+            'raw': 'u8', 
+            'names': ['x', 'y', 'z', 'w']
+        })
+        with open(f'{path}_2_fix16.{ext}', 'w') as file:
+            file.write(render)
 
 
 # Compile the sources to assembly scripts
 for src_c in sources_c:
     path = str(build_directory / Path(src_c.name).stem)
     print(f'- {src_c}')
-    asm = env_s.Compile (path, src_c)
-    obj = env_s.Assemble(path, asm)
+    asm = env_sc.Compile (path, src_c)
+    obj = env_sc.Assemble(path, asm)
     objects.append(obj)
 
 
@@ -95,9 +113,9 @@ for src_c in sources_c:
 for src_asm in sources_asm:
     path = str(build_directory / Path(src_asm.name).stem)
     print(f'- {src_asm}')
-    obj = env_s.Assemble(path, src_asm)
+    obj = env_sc.Assemble(path, src_asm)
     objects.append(obj)
 
 
 # Link the object files
-env_s.Link('test.nes', objects)
+env_sc.Link('test.nes', objects)

@@ -1,0 +1,7 @@
+# Some arbitrary config file
+---
+some_data: Example
+other_data:
+  - 1
+  - 2
+  - 3

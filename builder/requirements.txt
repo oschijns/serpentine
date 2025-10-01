@@ -1,5 +1,6 @@
 SCons
 Jinja2
+pyyaml
 numpy
 numba
 imageio
