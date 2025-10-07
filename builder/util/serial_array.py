@@ -2,62 +2,155 @@
     Serialize a sequence of bytes for either C or ASM
 """
 
+import numpy as np
+
 from numba import njit, prange
 from numpy import ndarray
 
 
-# Specify how many elements to write per line for 1D arrays
-LINE_SIZE = 16
+# Serialize buffers of data using assembly syntax
+class SerialAsm:
+
+    # period labels
+    _LABELS_PERIOD = ['.byte', '.word', '.long', '.quad', '.octa']
+
+    # D-labels
+    _LABELS_D = ['db', 'dw', 'dd', 'dq', 'ddq']
+
+    # format integer into lower case hexadecimal string
+    _FORMAT_HEX_LOWER = [
+        lambda n: format(int(n), '02x' ),
+        lambda n: format(int(n), '04x' ),
+        lambda n: format(int(n), '08x' ),
+        lambda n: format(int(n), '016x'),
+        lambda n: format(int(n), '032x'),
+    ]
+
+    # format integer into upper case hexadecimal string
+    _FORMAT_HEX_UPPER = [
+        lambda n: format(int(n), '02X' ),
+        lambda n: format(int(n), '04X' ),
+        lambda n: format(int(n), '08X' ),
+        lambda n: format(int(n), '016X'),
+        lambda n: format(int(n), '032X'),
+    ]
+
+    # Create a config for serializing buffer of data into assembly syntax
+    def __init__(self, 
+        notation   : str  = '0x', 
+        uppercase  : bool = False,
+        labels     : str  = 'PERIOD'):
+
+        # Which set of labels to use
+        if   labels == 'PERIOD' : self.labels = SerialAsm._LABELS_PERIOD
+        elif labels == 'D'      : self.labels = SerialAsm._LABELS_D
+        else: raise Exception(f"Unknown label set {labels}.")
+
+        # Select the hexadecimal notation to use
+        self.format = SerialAsm._FORMAT_HEX_UPPER if uppercase else SerialAsm._FORMAT_HEX_LOWER
+
+        # Select how to annotate the hexadecimal numbers
+        if   notation == '0x' : self.annote = lambda s: f'0x{s}'
+        elif notation == '$'  : self.annote = lambda s: f'${s}'
+        elif notation == 'h'  : self.annote = lambda s: f'{s}h'
+        else: raise Exception(f"Unknown hexadecimal notation {notation}.")
 
 
-# Serialize to assembly sources
-@njit
-def serial_to_asm(buffer: ndarray, zeroguard: bool = False) -> str:
-    # read the provided array to figure out how to serialize it
-    s = buffer.dtype.itemsize
-    if   s == 1:
-        head = '.byte'
-        fmt  = lambda n: f'${n:02x}'
-    elif s == 2:
-        head = '.word'
-        fmt  = lambda n: f'${n:04x}'
-    else:
-        raise Exception(f"Unsupported type {buffer.dtype.name}.")
+    # Get the index corresponding to the size of the provided integer type
+    @staticmethod
+    def _idx_size(size: int) -> int:
+        if   size ==  1: return 0
+        elif size ==  2: return 1
+        elif size ==  4: return 2
+        elif size ==  8: return 3
+        elif size == 16: return 4
+        else: raise Exception(f"Unsupported integer size {size}.")
 
-    # compose blocks of numbers
-    s = len(buffer.shape)
-    block = []
 
-    # serialize the 1D array as lines of 16 elements
-    if   s == 1:
-        line = []
-        for i in prange(buffer.shape[0]):
-            if i > 0 and i % LINE_SIZE == 0:
-                line = ','.join(line)
-                block.append(f'\t{head}\t{line}')
-                line = []
-            line.append(fmt(buffer[i]))
-        # write the last line
-        if buffer.shape[0] % LINE_SIZE != 0:
-            line = ','.join(line)
-            block.append(f'\t{head}\t{line}')
+    # Serialize a matrix
+    def serialize_matrix(self, matrix: ndarray) -> str:
+        """
+        Serialize a matrix of N-dimensions to assembly syntax.
 
-    # serialize as a 2D array
-    elif s == 2:
-        for y in prange(buffer.shape[1]):
-            line = []
-            for x in prange(buffer.shape[0]):
-                line.append(fmt(buffer[x, y]))
-            line = ','.join(line)
-            block.append(f'\t{head}\t{line}')
+        @type  matrix: ndarray
+        @param matrix: A matrix of N-dimension storing unsigned integers
 
-    # don't handle 3D or more arrays
-    else:
-        raise Exception(f"Unsupported array shape {buffer.shape}.")
+        @rtype: str
+        @returns: Assembly syntax that can be embedded using Jinja2
+        """
 
-    # join the lines into a block
-    output = '\n'.join(block)
-    return f'{output}\n\t{head}\t0' if zeroguard else output
+        # Get the number of dimensions in the matrix
+        # We have three cases to handle: 1, 2 or N
+        dim = len(matrix.shape)
+
+        # cannot handle matrix without any dimensions
+        if dim <= 0:
+            raise Exception("Cannot operate on matrix of null dimension")
+
+        # generate a single line
+        elif dim == 1:
+            idx = self._idx_size(matrix.dtype.itemsize)
+            lbl = self.labels[idx]
+            fmt = self.format[idx]
+            tkn = [self.annote(fmt(n)) for n in matrix]
+            return '{} {}'.format(lbl, ', '.join(tkn))
+
+        # generate paragraphs
+        else:
+            sep = '\n' * (dim - 1)
+            blk = [self.serialize_matrix(sub) for sub in matrix]
+            return sep.join(blk)
+
+
+    # Serialize list of arbitrary size
+    def serialize_list(self, 
+        array     : list, 
+        intsize   : int  = 1, 
+        zeroguard : bool = False
+    ) -> str:
+        """
+        Serialize a list
+
+        @type  array: list
+        @param array: A list of elements
+
+        @type  intsize: int
+        @param intsize: Size of the integer to serialize in bytes 
+
+        @type  zeroguard: bool
+        @param zeroguard: Specify if the list should be null terminated
+
+        @rtype: str
+        @returns: Assembly syntax that can be embedded using Jinja2
+        """
+
+
+    # Serialize a string
+    def serialize_string(self, text : str) -> str:
+        """
+        Serialize a string of text
+
+        @type  text: str
+        @param text: The text to serialize
+
+        @type  intsize: int
+        @param intsize: Size of the integer to serialize in bytes 
+
+        @type  zeroguard: bool
+        @param zeroguard: Specify if the list should be null terminated
+
+        @rtype: str
+        @returns: Assembly syntax that can be embedded using Jinja2
+        """
+
+
+        input  = np.frombuffer(text.encode(), dtype=np.uint8)
+        #TODO: output = remap_characters(input, self.remap)
+
+
+
+
+
 
 
 
