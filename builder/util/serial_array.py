@@ -7,6 +7,8 @@ import numpy as np
 from numba import njit, prange
 from numpy import ndarray
 
+from util.text_formatter import TextFormatter
+
 
 # Serialize buffers of data using assembly syntax
 class SerialAsm:
@@ -37,9 +39,10 @@ class SerialAsm:
 
     # Create a config for serializing buffer of data into assembly syntax
     def __init__(self, 
-        notation   : str  = '0x', 
-        uppercase  : bool = False,
-        labels     : str  = 'PERIOD'):
+        notation    : str  = '0x',
+        uppercase   : bool = False,
+        labels      : str  = 'PERIOD',
+        text_format : TextFormatter = None):
 
         # Which set of labels to use
         if   labels == 'PERIOD' : self.labels = SerialAsm._LABELS_PERIOD
@@ -54,6 +57,9 @@ class SerialAsm:
         elif notation == '$'  : self.annote = lambda s: f'${s}'
         elif notation == 'h'  : self.annote = lambda s: f'{s}h'
         else: raise Exception(f"Unknown hexadecimal notation {notation}.")
+
+        # If provided store a text formatter
+        self.text_format = text_format
 
 
     # Get the index corresponding to the size of the provided integer type
@@ -126,7 +132,7 @@ class SerialAsm:
 
 
     # Serialize a string
-    def serialize_string(self, text : str) -> str:
+    def serialize_string(self, text: str) -> str:
         """
         Serialize a string of text
 
@@ -143,13 +149,25 @@ class SerialAsm:
         @returns: Assembly syntax that can be embedded using Jinja2
         """
 
+        if self.text_format is None:
+            raise Exception("No text formatter defined for this assembly serializer")
 
-        input  = np.frombuffer(text.encode(), dtype=np.uint8)
-        #TODO: output = remap_characters(input, self.remap)
+        lbl = self.labels[0]
+        fmt = self.format[0]
 
+        # generate lines to serialize
+        lines = self.text_format.convert(text)
 
+        # generate assembly lines
+        output = []
+        for i, line in enumerate(lines):
+            # serialize the line with a zero guard at the end
+            tkn = [self.annote(fmt(n)) for n in line]
+            ent = '{} {}, 0'.format(lbl, ', '.join(tkn))
+            output.append(ent)
 
-
+        # create a paragraph
+        return '\n'.join(output)
 
 
 
