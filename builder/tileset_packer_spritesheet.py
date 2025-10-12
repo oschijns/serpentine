@@ -9,18 +9,22 @@ import json
 import numpy      as np
 import imageio.v3 as iio
 
-from os       import path
-from argparse import ArgumentParser
-from numpy    import ndarray
-
-from util.tileset_system import System
-from util.tileset_util   import cut_image_into_tiles, reformat_tileset, extract_tileset
+from os             import path
+from numpy          import ndarray
+from tileset.system import System
+from tileset.util   import cut_image_into_tiles, reformat_tileset, extract_tileset
+from dataclasses    import dataclass
+from configargparse import ArgParser
 
 
 def main():
-    parser = ArgumentParser(
+    parser = ArgParser(
         prog="tileset_packer_spritesheet",
         description="Read Aseprite exports' to generate animated sprites for the target system.")
+
+    parser.add_argument('-c', '--config', 
+        is_config_file=True,
+        help="config file path")
 
     parser.add_argument('-i', '--input', 
         dest='inputs',
@@ -49,31 +53,50 @@ def main():
         required=True,
         help="Specify the order of the colors (.png)")
 
-    args = parser.parse_args()
+    args   = parser.parse_args()
+    config = Config(
+        args.inputs, 
+        args.output_json,
+        args.output_tileset,
+        args.system,
+        args.palette)
+    config.run()
 
-    # Check if the system is known
-    system = System.get(args.system, True)
-    if system is None:
-        print(f"Unrecognized system \"{args.system}\"", file=sys.stderr)
-        sys.exit(1)
 
-    # Load the images based on the CLI
-    spritesheets = []
-    for input in args.inputs:
-        spritesheets.append(SpriteSheet(input))
+# Store configuration for running this script
+@dataclass
+class Config:
+    inputs         : list[str]
+    output_json    : str
+    output_tileset : str
+    system         : str
+    palette        : str
 
-    # read provided palettes
-    palettes = iio.imread(args.palette)
+    # Run the script
+    def run(self):
+        # Check if the system is known
+        system = System.get(self.system, True)
+        if system is None:
+            print(f"Unrecognized system \"{self.system}\"", file=sys.stderr)
+            sys.exit(1)
 
-    # Process the provided data
-    tileset = process(spritesheets, palettes, system)
-    metasprites = to_serial(spritesheets, system)
+        # Load the images based on the CLI
+        spritesheets = []
+        for input in self.inputs:
+            spritesheets.append(SpriteSheet(input))
 
-    # Write the results to files
-    iio.imwrite(args.output_tileset, reformat_tileset(tileset, palettes))
-    json_str = json.dumps(metasprites, indent = 4)
-    with open(args.output_json, 'w') as file:
-        file.write(json_str)
+        # read provided palettes
+        palettes = iio.imread(self.palette)
+
+        # Process the provided data
+        tileset     =   process(spritesheets, palettes, system)
+        metasprites = to_serial(spritesheets,           system)
+
+        # Write the results to files
+        iio.imwrite(self.output_tileset, reformat_tileset(tileset, palettes))
+        json_str = json.dumps(metasprites, indent = 4)
+        with open(self.output_json, 'w') as file:
+            file.write(json_str)
 
 
 # Define a frame

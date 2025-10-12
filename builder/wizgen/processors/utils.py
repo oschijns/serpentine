@@ -5,9 +5,10 @@ from collections.abc import Callable
 # Process a line of assembly and convert it into a wiz instruction.
 def proc_line(
         indent    : int,
-        line      : str, 
+        line      : str,
+        width     : int, 
         prefix    : str, 
-        template  : str = '{}', 
+        template  : str = '{:<%d}', 
         transform : Callable[[str], str] = lambda x: x,
         comment   : str = ';'
     ) -> str|None:
@@ -22,13 +23,13 @@ def proc_line(
         # of tokens. Then pass it to the template to complete the instruction.
         rm = len(prefix)
         tokens = transform(head[rm:].strip())
-        inst = template.format(tokens)
+        inst = (template % width).format(tokens)
 
         # Set indentation
         tab = ' ' * indent
 
         # Add the inline comment if there was any
-        return f'{tab}{inst} //{tail}\n' if tail else f'{tab}{inst}\n'
+        return f'{tab}{inst} {{# {tail} #}}\n' if tail else f'{tab}{inst}\n'
     else:
         return None
 

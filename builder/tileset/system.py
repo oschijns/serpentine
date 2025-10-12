@@ -55,13 +55,13 @@ class System:
 
         # Store the element in the appropriate list
         if is_sprite:
-            System.CONFIG_SPRITES[self.name] = self
+            Self.CONFIG_SPRITES[self.name] = self
         else:
-            System.CONFIG_TILEMAPS[self.name] = self
+            Self.CONFIG_TILEMAPS[self.name] = self
         
         # Specify that the system exists
-        if self.name not in System.SYSTEMS:
-            System.SYSTEMS.append(self.name) 
+        if self.name not in Self.SYSTEMS:
+            Self.SYSTEMS.append(self.name) 
 
 
     # Print a string representation of the system
@@ -107,9 +107,9 @@ class System:
     @staticmethod
     def get(name: str, is_sprite: bool = False) -> Self | None:
         if is_sprite:
-            return System.CONFIG_SPRITES.get(name)
+            return Self.CONFIG_SPRITES.get(name)
         else:
-            return System.CONFIG_TILEMAPS.get(name)
+            return Self.CONFIG_TILEMAPS.get(name)
 
 
 # Nintendo Entertainment System

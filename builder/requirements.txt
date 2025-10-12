@@ -4,3 +4,4 @@ pyyaml
 numpy
 numba
 imageio
+ConfigArgParse

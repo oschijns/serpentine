@@ -12,17 +12,21 @@ import sys
 import numpy      as np
 import imageio.v3 as iio
 
-from argparse import ArgumentParser
-from numpy    import ndarray
-
-from util.tileset_system import System
-from util.tileset_util   import cut_image_into_tiles, reformat_tileset, extract_tileset
+from numpy          import ndarray
+from tileset.system import System
+from tileset.util   import cut_image_into_tiles, reformat_tileset, extract_tileset
+from dataclasses    import dataclass
+from configargparse import ArgParser
 
 
 def main():
-    parser = ArgumentParser(
+    parser = ArgParser(
         prog="tileset_packer_tilemap",
         description="Process pixel art images to identify common tiles and output a tileset.")
+
+    parser.add_argument('-c', '--config', 
+        is_config_file=True,
+        help="config file path")
 
     parser.add_argument('-i', '--input', 
         dest='inputs',
@@ -63,27 +67,54 @@ def main():
 
     args = parser.parse_args()
 
-    # Check if the system is known
-    system = System.get(args.system)
-    if system is None:
-        print(f"Unrecognized system \"{args.system}\"", file=sys.stderr)
-        sys.exit(1)
+    # Should we include a character set in the tilemap
+    charset = None
+    if args.charset is not None:
+        charset = (args.charset, args.charset_offset, args.charset_size)
 
-    # Load the images based on the CLI
-    images = []
-    for input in args.inputs:
-        images.append(iio.imread(input))
-    palettes = iio.imread(args.palette)
-    charset  = None if args.charset is None else (
-        iio.imread(args.charset), int(args.charset_offset, 0), int(args.charset_size, 0))
+    config = Config(
+        args.inputs,
+        args.output,
+        args.system,
+        args.palette,
+        charset)
+    config.run()
 
-    # Process the provided data
-    # TODO: write the tilemaps to a json file?
-    (tileset, _) = process(images, palettes, system, charset)
 
-    # Reformat the tileset into an image
-    iio.imwrite(args.output, reformat_tileset(tileset, palettes))
+# Store configuration for running this script
+@dataclass
+class Config:
+    inputs  : list[str]
+    output  : str
+    system  : str
+    palette : str
+    charset : tuple[str, int, int] | None = None
 
+    # Run the script
+    def run(self):
+        # Check if the system is known
+        system = System.get(self.system)
+        if system is None:
+            print(f"Unrecognized system \"{self.system}\"", file=sys.stderr)
+            sys.exit(1)
+
+        # Load the images based on the CLI
+        images = []
+        for input in self.inputs:
+            images.append(iio.imread(input))
+        palettes = iio.imread(self.palette)
+
+        # Check if a character set was provided
+        charset = None
+        if self.charset is not None:
+            charset = (iio.imread(self.charset[0]), self.charset[1], self.charset[2])
+
+        # Process the provided data
+        # TODO: write the tilemaps to a json file?
+        (tileset, _) = process(images, palettes, system, charset)
+
+        # Reformat the tileset into an image
+        iio.imwrite(self.output, reformat_tileset(tileset, palettes))
 
 
 # Process the data

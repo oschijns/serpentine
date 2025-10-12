@@ -7,17 +7,21 @@
 import sys
 import imageio.v3 as iio
 
-from argparse import ArgumentParser
-from numpy    import ndarray
-
-from util.tileset_system import System
-from util.tileset_util   import cut_image_into_tiles, reshape_tileset, reformat_tileset
+from numpy          import ndarray
+from tileset.system import System
+from tileset.util   import cut_image_into_tiles, reshape_tileset, reformat_tileset
+from dataclasses    import dataclass
+from configargparse import ArgParser
 
 
 def main():
-    parser = ArgumentParser(
+    parser = ArgParser(
         prog="tileset_palette_variation",
         description="Generate tile variations based on the number of palettes available.")
+
+    parser.add_argument('-c', '--config', 
+        is_config_file=True,
+        help="config file path")
 
     parser.add_argument('-i', '--input', 
         dest='input', 
@@ -36,7 +40,7 @@ def main():
         help="Generate tileset variations compatible with the specified system")
     
     parser.add_argument('--pal', '--palette',
-        dest='palettes',
+        dest='palette',
         required=True,
         help="Specify which variations to generate")
 
@@ -46,22 +50,40 @@ def main():
         action='store_true',
         help="Processing a spritesheet")
 
-    args = parser.parse_args()
+    args   = parser.parse_args()
+    config = Config(
+        args.input,
+        args.output,
+        args.system,
+        args.palette,
+        args.is_sprite)
+    config.run()
 
-    # Check if the system is known
-    system = System.get(args.system, args.is_sprite)
-    if system is None:
-        print(f"Unrecognized system \"{args.system}\"", file=sys.stderr)
-        sys.exit(1)
 
-    # Load the images based on the CLI
-    image    = iio.imread(args.input)
-    palettes = iio.imread(args.palettes)
+# Store configuration for running this script
+@dataclass
+class Config:
+    input     : str
+    output    : str
+    system    : str
+    palette   : str
+    is_sprite : bool = False
 
-    # Process the data
-    tileset = process(image, palettes, system)
-    iio.imwrite(args.output, reformat_tileset(tileset, palettes, pal_variation=True))
+    # Run the script
+    def run(self):
+        # Check if the system is known
+        system = System.get(self.system, self.is_sprite)
+        if system is None:
+            print(f"Unrecognized system \"{self.system}\"", file=sys.stderr)
+            sys.exit(1)
 
+        # Load the images based on the CLI
+        image    = iio.imread(self.input)
+        palettes = iio.imread(self.palette)
+
+        # Process the data
+        tileset = process(image, palettes, system)
+        iio.imwrite(self.output, reformat_tileset(tileset, palettes, pal_variation=True))
 
 
 # Process the data

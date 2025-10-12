@@ -10,18 +10,22 @@ import sys
 import numpy      as np
 import imageio.v3 as iio
 
-from argparse import ArgumentParser
-from numba    import njit, prange
-from numpy    import ndarray
-
-from util.tileset_system import System
-from util.tileset_util   import cut_image_into_tiles, reshape_tileset
+from numba          import njit, prange
+from numpy          import ndarray
+from tileset.system import System
+from tileset.util   import cut_image_into_tiles, reshape_tileset
+from dataclasses    import dataclass
+from configargparse import ArgParser
 
 
 def main():
-    parser = ArgumentParser(
+    parser = ArgParser(
         prog="tile_bitplane",
         description="Generate a binary file to include in a project.")
+
+    parser.add_argument('-c', '--config', 
+        is_config_file=True,
+        help="config file path")
 
     parser.add_argument('-i', '--input',
         dest='input',
@@ -40,7 +44,7 @@ def main():
         help="Generate the tileset for the specified system")
 
     parser.add_argument('--pal', '--palette',
-        dest='palettes',
+        dest='palette',
         required=True,
         help="Specify a palette to process the tileset")
 
@@ -55,40 +59,60 @@ def main():
         choices=['2bpp', '4bpp', '8bpp', 'mode7'],
         help="SNES supports multiple background modes")
 
-    args = parser.parse_args()
-
-    # Check if the system is known
-    system = System.get(args.system, args.is_sprite)
-    if system is None:
-        print(f"Unrecognized system \"{args.system}\"", file=sys.stderr)
-        sys.exit(1)
-
-    # If SNES, check for background mode
-    bg_modes = { '2bpp': 2, '4bpp': 4, '8bpp': 8, 'mode7': 8 }
-    if args.system == 'snes':
-        if args.snes_mode is None:
-            print("background mode must be specified for SNES", file=sys.stderr)
-            sys.exit(2)
-        elif args.snes_mode in bg_modes:
-            system.bit_count = bg_modes[args.snes_mode]
-            if args.snes_mode == 'mode7':
-                system.use_bitplanes = False
-        else:
-            print(f"Unrecognized background mode {args.snes_mode}", file=sys.stderr)
-            sys.exit(3)
+    args   = parser.parse_args()
+    config = Config(
+        args.input,
+        args.output,
+        args.system,
+        args.palette,
+        args.is_sprite,
+        args.snes_bg_mode)
+    config.run()
 
 
-    # Load the images based on the CLI
-    image    = iio.imread(args.input)
-    palettes = iio.imread(args.palettes)
+# Store configuration for running this script
+@dataclass
+class Config:
+    input        : str
+    output       : str
+    system       : str
+    palette      : str
+    is_sprite    : bool = False
+    snes_bg_mode : str | None = None
 
-    # Process the data
-    serial = process(image, palettes, system)
+    # Run the script
+    def run(self):
+        # Check if the system is known
+        system = System.get(self.system, self.is_sprite)
+        if system is None:
+            print(f"Unrecognized system \"{self.system}\"", file=sys.stderr)
+            sys.exit(1)
 
-    # Write the result to the output file
-    with open(args.output, 'wb') as file:
-        for byte in serial:
-            file.write(byte)
+        # If SNES, check for background mode
+        bg_modes = { '2bpp': 2, '4bpp': 4, '8bpp': 8, 'mode7': 8 }
+        if self.system == 'snes':
+            if self.snes_mode is None:
+                print("background mode must be specified for SNES", file=sys.stderr)
+                sys.exit(2)
+            elif self.snes_mode in bg_modes:
+                system.bit_count = bg_modes[self.snes_mode]
+                if self.snes_mode == 'mode7':
+                    system.use_bitplanes = False
+            else:
+                print(f"Unrecognized background mode {self.snes_mode}", file=sys.stderr)
+                sys.exit(3)
+
+        # Load the images based on the CLI
+        image    = iio.imread(self.input)
+        palettes = iio.imread(self.palette)
+
+        # Process the data
+        serial = process(image, palettes, system)
+
+        # Write the result to the output file
+        with open(self.output, 'wb') as file:
+            for byte in serial:
+                file.write(byte)
 
 
 # Process the data
