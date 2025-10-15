@@ -6,9 +6,8 @@ from collections.abc import Callable
 def proc_line(
         indent    : int,
         line      : str,
-        width     : int, 
         prefix    : str, 
-        template  : str = '{:<%d}', 
+        template  : str = '{}', 
         transform : Callable[[str], str] = lambda x: x,
         comment   : str = ';'
     ) -> str|None:
@@ -23,7 +22,7 @@ def proc_line(
         # of tokens. Then pass it to the template to complete the instruction.
         rm = len(prefix)
         tokens = transform(head[rm:].strip())
-        inst = (template % width).format(tokens)
+        inst = template.format(tokens)
 
         # Set indentation
         tab = ' ' * indent

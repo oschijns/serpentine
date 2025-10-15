@@ -93,6 +93,12 @@ class Mos6502:
             if tokens := proc_line(indent, line, inst[0], inst[1], reproc):
                 return tokens
         
+        if line.strip()[-1] == ':':
+            # label
+            label = line.strip()[:-1]
+            tab = ' ' * indent
+            return f'{tab}{label}:\n'
+
         # Not recognized
         return None
 

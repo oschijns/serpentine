@@ -36,9 +36,6 @@ def main() -> None:
     # Build a processor to convert the instructions
     processor = Mos6502(args.type)
 
-    # maximum width to handle
-    width = 120
-
     # Open both file at once, read and convert line by line
     with open(args.input, 'r') as input, open(args.output, 'w') as output:
         for line in input:
@@ -51,34 +48,34 @@ def main() -> None:
 
             # handle comments
             elif line.startswith(';'):
-                output.write(('{{# {:<%d} #}}\n' % width).format(line[1:]))
+                output.write('{{# {} #}}\n'.format(line[1:]))
             
             # TODO replace by Jinja2 templating
 
             # handle conditional macros
-            elif text := proc_line(indent, line, width, '.if', '{{%% if {:<%d} %%}}'):
+            elif text := proc_line(indent, line, '.ifndef', r'{{% if ({}) is None %}}'):
                 output.write(text)
 
-            elif text := proc_line(indent, line, width, '.ifdef', '{{%% if ({:<%d}) is not None %%}}'):
+            elif text := proc_line(indent, line, '.ifdef', r'{{% if ({}) is not None %}}'):
                 output.write(text)
 
-            elif text := proc_line(indent, line, width, '.ifndef', '{{%% if ({:<%d}) is None %%}}'):
+            elif text := proc_line(indent, line, '.if', r'{{% if {} %}}'):
                 output.write(text)
             
-            elif text := proc_line(indent, line, width, '.elseif', '{{%% elif {:<%d} %%}}'):
+            elif text := proc_line(indent, line, '.elseif', r'{{% elif {} %}}'):
                 output.write(text)
             
-            elif text := proc_line(indent, line, width, '.else', '{{%% else %d %%}}'):
+            elif text := proc_line(indent, line, '.else', r'{{% else %}}'):
                 output.write(text)
 
-            elif text := proc_line(indent, line, width, '.endif', '{{%% endif %d %%}}'):
+            elif text := proc_line(indent, line, '.endif', r'{{% endif %}}'):
                 output.write(text)
             
             elif text := processor.process(indent, line):
                 output.write(text)
             
             # Could not process the line
-            else: output.write(('{{# !!! {:<%d} !!! #}}\n' % width).format(line[1:]))
+            else: output.write('{{# !!! {} !!! #}}\n'.format(line[1:]))
 
 
 
