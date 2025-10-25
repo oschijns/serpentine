@@ -2,259 +2,253 @@
     Assembly parser and converter for 6502 family processors
 """
 
+from asm_parser import RuleMnemo, RuleInst
 
-_INST_MOS6502 = {
+_INST_MOS6502 = [
     # Add memory to accumulator with carry
-    'adc': [
-        (r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)', 'a +#= *(*(({zp} + x) as *u16) as *u8);'),
-        (r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]', 'a +#= *(*(({zp} as *u16) + y) as *u8);'),
-        (r'(?P<addr>.+)\s*,\s*[Xx]'        , 'a +#= *(({addr} + x) as *u8);'),
-        (r'(?P<addr>.+)\s*,\s*[Yy]'        , 'a +#= *(({addr} + y) as *u8);'),
-        (r'(?P<val>.+)'                    , 'a +#= {val};')
-    ],
+    RuleMnemo('adc', [
+        RuleInst(r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)'   , 'a +#= *(*(({zp} + x) as *u16) as *u8);', ['zp'  ]),
+        RuleInst(r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]'   , 'a +#= *(*(({zp} as *u16) + y) as *u8);', ['zp'  ]),
+        RuleInst(r'(?P<addr>.+)\s*,\s*(?P<reg>[XxYy])', 'a +#= *(({addr} + {reg}) as *u8);'     , ['addr'], ['reg']),
+        RuleInst(r'(?P<val>.+)'                       , 'a +#= {val};'                          , ['val' ])
+    ]),
 
     # AND memory with accumulator
-    'and': [
-        (r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)', 'a &= *(*(({zp} + x) as *u16) as *u8);'),
-        (r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]', 'a &= *(*(({zp} as *u16) + y) as *u8);'),
-        (r'(?P<addr>.+)\s*,\s*[Xx]'        , 'a &= *(({addr} + x) as *u8);'),
-        (r'(?P<addr>.+)\s*,\s*[Yy]'        , 'a &= *(({addr} + y) as *u8);'),
-        (r'(?P<val>.+)'                    , 'a &= {val};')
-    ],
+    RuleMnemo('and', [
+        RuleInst(r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)'   , 'a &= *(*(({zp} + x) as *u16) as *u8);', ['zp'  ]),
+        RuleInst(r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]'   , 'a &= *(*(({zp} as *u16) + y) as *u8);', ['zp'  ]),
+        RuleInst(r'(?P<addr>.+)\s*,\s*(?P<reg>[XxYy])', 'a &= *(({addr} + {reg}) as *u8);'     , ['addr'], ['reg']),
+        RuleInst(r'(?P<val>.+)'                       , 'a &= {val};'                          , ['val' ])
+    ]),
 
     # Shift left one bit (memory or accumulator)
-    'asl': [
-        (r'(?P<addr>.+)\s*,\s*[Xx]', '*(({addr} + x) as *u8) <<= 1;'),
-        (r'(?P<val>.+)'            , '{val} <<= 1;')
-    ],
+    RuleMnemo('asl', [
+        RuleInst(r'(?P<addr>.+)\s*,\s*[Xx]', '*(({addr} + x) as *u8) <<= 1;', ['addr']),
+        RuleInst(r'(?P<val>.+)'            , '{val} <<= 1;'                 , ['val'])
+    ]),
 
     # Branch on carry clear
-    'bcc': (r'(?P<addr>.+)', 'goto ({addr}) if !carry;'),
+    RuleMnemo('bcc', [RuleInst(r'(?P<addr>.+)', 'goto {addr} if !carry;', ['addr'])]),
 
     # Branch on carry set
-    'bcs': (r'(?P<addr>.+)', 'goto ({addr}) if carry;'),
+    RuleMnemo('bcs', [RuleInst(r'(?P<addr>.+)', 'goto {addr} if carry;', ['addr'])]),
 
     # Branch on result zero
-    'beq': (r'(?P<addr>.+)', 'goto ({addr}) if zero;'),
+    RuleMnemo('beq', [RuleInst(r'(?P<addr>.+)', 'goto {addr} if zero;', ['addr'])]),
 
     # Test bits in memory with accumulator
-    'bit': (r'(?P<val>.+)', 'bit({val});'),
+    RuleMnemo('bit', [RuleInst(r'(?P<val>.+)', 'bit({val});', ['val'])]),
 
     # Branch on result minus
-    'bmi': (r'(?P<addr>.+)', 'goto ({addr}) if negative;'),
+    RuleMnemo('bmi', [RuleInst(r'(?P<addr>.+)', 'goto {addr} if negative;', ['addr'])]),
 
     # Branch on result not zero
-    'bne': (r'(?P<addr>.+)', 'goto ({addr}) if !zero;'),
+    RuleMnemo('bne', [RuleInst(r'(?P<addr>.+)', 'goto {addr} if !zero;', ['addr'])]),
 
     # Branch on result plus
-    'bpl': (r'(?P<addr>.+)', 'goto ({addr}) if !negative;'),
+    RuleMnemo('bpl', [RuleInst(r'(?P<addr>.+)', 'goto {addr} if !negative;', ['addr'])]),
 
     # Force break
-    'brk': 'irqcall(0);',
+    RuleMnemo('brk', 'irqcall(0);'),
 
     # Branch on overflow clear
-    'bvc': (r'(?P<addr>.+)', 'goto ({addr}) if !overflow;'),
+    RuleMnemo('bvc', [RuleInst(r'(?P<addr>.+)', 'goto {addr} if !overflow;', ['addr'])]),
 
     # Branch on overflow set
-    'bvs': (r'(?P<addr>.+)', 'goto ({addr}) if overflow;'),
+    RuleMnemo('bvs', [RuleInst(r'(?P<addr>.+)', 'goto {addr} if overflow;', ['addr'])]),
 
     # Clear carry flag
-    'clc': 'carry = false;',
+    RuleMnemo('clc', 'carry = false;'),
 
     # Clear decimal mode
-    'cld': 'decimal = false;',
+    RuleMnemo('cld', 'decimal = false;'),
 
     # Clear interrupt disable status
-    'cli': 'nointerrupt = false;',
+    RuleMnemo('cli', 'nointerrupt = false;'),
 
     # Clear overflow flag
-    'clv': 'overflow = false;',
+    RuleMnemo('clv', 'overflow = false;'),
 
     # Compare memory and accumulator
-    'cmp': [
-        (r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)', 'cmp(a, *(*(({zp} + x) as *u16) as *u8));'),
-        (r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]', 'cmp(a, *(*(({zp} as *u16) + y) as *u8));'),
-        (r'(?P<addr>.+)\s*,\s*[Xx]'        , 'cmp(a, *(({addr} + x) as *u8));'),
-        (r'(?P<addr>.+)\s*,\s*[Yy]'        , 'cmp(a, *(({addr} + y) as *u8));'),
-        (r'(?P<val>.+)'                    , 'cmp(a, {val});')
-    ],
+    RuleMnemo('cmp', [
+        RuleInst(r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)'   , 'cmp(a, *(*(({zp} + x) as *u16) as *u8));', ['zp'  ]),
+        RuleInst(r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]'   , 'cmp(a, *(*(({zp} as *u16) + y) as *u8));', ['zp'  ]),
+        RuleInst(r'(?P<addr>.+)\s*,\s*(?P<reg>[XxYy])', 'cmp(a, *(({addr} + {reg}) as *u8));'     , ['addr'], ['reg']),
+        RuleInst(r'(?P<val>.+)'                       , 'cmp(a, {val});'                          , ['val' ])
+    ]),
 
     # Compare memory and index X
-    'cpx': (r'(?P<val>.+)', 'cmp(x, {val});'),
+    RuleMnemo('cpx', [RuleInst(r'(?P<val>.+)', 'cmp(x, {val});', ['val'])]),
 
     # Compare memory and index Y
-    'cpy': (r'(?P<val>.+)', 'cmp(y, {val});'),
+    RuleMnemo('cpy', [RuleInst(r'(?P<val>.+)', 'cmp(y, {val});', ['val'])]),
 
     # Decrement memory by one
-    'dec': [
-        (r'(?P<addr>.+)\s*,\s*[Xx]', '-- *(({addr} + x) as *u8);'),
-        (r'(?P<val>.+)'            , '--({val});')
-    ],
+    RuleMnemo('dec', [
+        RuleInst(r'(?P<addr>.+)\s*,\s*[Xx]', '-- *(({addr} + x) as *u8);', ['addr']),
+        RuleInst(r'(?P<val>.+)'            , '-- {val};'                 , ['val'])
+    ]),
 
     # Decrement index X by one
-    'dex': '--x;',
+    RuleMnemo('dex', '--x;'),
 
     # Decrement index Y by one
-    'dey': '--y;',
+    RuleMnemo('dey', '--y;'),
 
     # XOR memory with accumulator
-    'eor': [
-        (r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)', 'a ^= *(*(({zp} + x) as *u16) as *u8);'),
-        (r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]', 'a ^= *(*(({zp} as *u16) + y) as *u8);'),
-        (r'(?P<addr>.+)\s*,\s*[Xx]'        , 'a ^= *(({addr} + x) as *u8);'),
-        (r'(?P<addr>.+)\s*,\s*[Yy]'        , 'a ^= *(({addr} + y) as *u8);'),
-        (r'(?P<val>.+)'                    , 'a ^= {val};')
-    ],
+    RuleMnemo('eor', [
+        RuleInst(r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)'   , 'a ^= *(*(({zp} + x) as *u16) as *u8);', ['zp'  ]),
+        RuleInst(r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]'   , 'a ^= *(*(({zp} as *u16) + y) as *u8);', ['zp'  ]),
+        RuleInst(r'(?P<addr>.+)\s*,\s*(?P<reg>[XxYy])', 'a ^= *(({addr} + {reg}) as *u8);'     , ['addr'], ['reg']),
+        RuleInst(r'(?P<val>.+)'                       , 'a ^= {val};'                          , ['val' ])
+    ]),
 
     # Increment memory by one
-    'inc': [
-        (r'(?P<addr>.+)\s*,\s*[Xx]', '++ *(({addr} + x) as *u8);'),
-        (r'(?P<val>.+)'            , '++({val});')
-    ],
+    RuleMnemo('inc', [
+        RuleInst(r'(?P<addr>.+)\s*,\s*[Xx]', '++ *(({addr} + x) as *u8);', ['addr']),
+        RuleInst(r'(?P<val>.+)'            , '++ {val};'                 , ['val' ])
+    ]),
 
     # Increment index X by one
-    'inx': '++x;',
+    RuleMnemo('inx', '++x;'),
 
     # Increment index Y by one
-    'iny': '++y;',
+    RuleMnemo('iny', '++y;'),
 
     # Jump to new location
-    'jmp': [
-        (r'\(\s*(?P<addr>.+)\s*\)', 'goto *(({addr}) as *u8);'),
-        (r'(?P<addr>.+)'          , 'goto ({addr});')
-    ],
+    RuleMnemo('jmp', [
+        RuleInst(r'\(\s*(?P<addr>.+)\s*\)', 'goto *({addr} as *u16);', ['addr']),
+        RuleInst(r'(?P<addr>.+)'          , 'goto {addr};'           , ['addr'])
+    ]),
 
     # Jump to new location saving return address
-    'jsr': (r'(?P<func>.+)', '{func}();'),
+    RuleMnemo('jsr', [(r'(?P<func>.+)', '{func}();', ['func'])]),
 
     # Load accumulator with memory
-    'lda': [
-        (r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)', 'a = *(*(({zp} + x) as *u16) as *u8);'),
-        (r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]', 'a = *(*(({zp} as *u16) + y) as *u8);'),
-        (r'(?P<addr>.+)\s*,\s*[Xx]'        , 'a = *(({addr} + x) as *u8);'),
-        (r'(?P<addr>.+)\s*,\s*[Yy]'        , 'a = *(({addr} + y) as *u8);'),
-        (r'(?P<val>.+)'                    , 'a = {val};')
-    ],
+    RuleMnemo('lda', [
+        RuleInst(r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)'   , 'a = *(*(({zp} + x) as *u16) as *u8);', ['zp'  ]),
+        RuleInst(r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]'   , 'a = *(*(({zp} as *u16) + y) as *u8);', ['zp'  ]),
+        RuleInst(r'(?P<addr>.+)\s*,\s*(?P<reg>[XxYy])', 'a = *(({addr} + {reg}) as *u8);'     , ['addr'], ['reg']),
+        RuleInst(r'(?P<val>.+)'                       , 'a = {val};'                          , ['val' ])
+    ]),
 
     # Load index X with memory
-    'ldx': [
-        (r'(?P<addr>.+)\s*,\s*[Yy]', 'x = *(({addr} + y) as *u8);'),
-        (r'(?P<val>.+)'            , 'x = {val};')
-    ],
+    RuleMnemo('ldx', [
+        RuleInst(r'(?P<addr>.+)\s*,\s*[Yy]', 'x = *(({addr} + y) as *u8);', ['addr']),
+        RuleInst(r'(?P<val>.+)'            , 'x = {val};'                 , ['val' ])
+    ]),
 
     # Load index Y with memory
-    'ldy': [
-        (r'(?P<addr>.+)\s*,\s*[Xx]', 'y = *(({addr} + x) as *u8);'),
-        (r'(?P<val>.+)'            , 'y = {val};')
-    ],
+    RuleMnemo('ldy', [
+        RuleInst(r'(?P<addr>.+)\s*,\s*[Xx]', 'y = *(({addr} + x) as *u8);', ['addr']),
+        RuleInst(r'(?P<val>.+)'            , 'y = {val};'                 , ['val' ])
+    ]),
 
     # Shift right one bit (memory or accumulator)
-    'lsr': [
-        (r'(?P<addr>.+)\s*,\s*[Xx]', '*(({addr} + x) as *u8) >>>= 1;'),
-        (r'(?P<val>.+)'            , '{val} >>>= 1;')
-    ],
+    RuleMnemo('lsr', [
+        RuleInst(r'(?P<addr>.+)\s*,\s*[Xx]', '*(({addr} + x) as *u8) >>>= 1;', ['addr']),
+        RuleInst(r'(?P<val>.+)'            , '{val} >>>= 1;'                 , ['val' ])
+    ]),
 
     # No operation
-    'nop': 'nop();',
+    RuleMnemo('nop', 'nop();'),
 
     # OR memory with accumulator
-    'ora': [
-        (r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)', 'a |= *(*(({zp} + x) as *u16) as *u8);'),
-        (r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]', 'a |= *(*(({zp} as *u16) + y) as *u8);'),
-        (r'(?P<addr>.+)\s*,\s*[Xx]'        , 'a |= *(({addr} + x) as *u8);'),
-        (r'(?P<addr>.+)\s*,\s*[Yy]'        , 'a |= *(({addr} + y) as *u8);'),
-        (r'(?P<val>.+)'                    , 'a |= {val};')
-    ],
+    RuleMnemo('ora', [
+        RuleInst(r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)'   , 'a |= *(*(({zp} + x) as *u16) as *u8);', ['zp'  ]),
+        RuleInst(r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]'   , 'a |= *(*(({zp} as *u16) + y) as *u8);', ['zp'  ]),
+        RuleInst(r'(?P<addr>.+)\s*,\s*(?P<reg>[XxYy])', 'a |= *(({addr} + {reg}) as *u8);'     , ['addr'], ['reg']),
+        RuleInst(r'(?P<val>.+)'                       , 'a |= {val};'                          , ['val' ])
+    ]),
 
     # Push accumulator on stack
-    'pha': 'push(a);',
+    RuleMnemo('pha', 'push(a);'),
 
     # Push processor status on stack
-    'php': 'push(p);',
+    RuleMnemo('php', 'push(p);'),
 
     # Pull accumulator from stack
-    'pla': 'a = pop();',
+    RuleMnemo('pla', 'a = pop();'),
 
     # Pull processor status from stack
-    'plp': 'p = pop();',
+    RuleMnemo('plp', 'p = pop();'),
 
     # Rotate one bit left (memory or accumulator)
-    'rol': [
-        (r'(?P<addr>.+)\s*,\s*[Xx]', '*(({addr} + x) as *u8) <<<<#= 1;'),
-        (r'(?P<val>.+)'            , '{val} <<<<#= 1;')
-    ],
+    RuleMnemo('rol', [
+        RuleInst(r'(?P<addr>.+)\s*,\s*[Xx]', '*(({addr} + x) as *u8) <<<<#= 1;', ['addr']),
+        RuleInst(r'(?P<val>.+)'            , '{val} <<<<#= 1;'                 , ['val' ])
+    ]),
 
     # Rotate one bit right (memory or accumulator)
-    'ror': [
-        (r'(?P<addr>.+)\s*,\s*[Xx]', '*(({addr} + x) as *u8) >>>>#= 1;'),
-        (r'(?P<val>.+)'            , '{val} >>>>#= 1;')
-    ],
+    RuleMnemo('ror', [
+        RuleInst(r'(?P<addr>.+)\s*,\s*[Xx]', '*(({addr} + x) as *u8) >>>>#= 1;', ['addr']),
+        RuleInst(r'(?P<val>.+)'            , '{val} >>>>#= 1;'                 , ['val' ])
+    ]),
 
     # Return from interrupt
-    'rti': 'irqreturn;',
+    RuleMnemo('rti', 'irqreturn;'),
 
     # Return from subroutine
-    'rts': 'return;',
+    RuleMnemo('rts', 'return;'),
 
     # Subtract memory from accumulator with borrow
-    'sbc': [
-        (r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)', 'a -#= *(*(({zp} + x) as *u16) as *u8);'),
-        (r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]', 'a -#= *(*(({zp} as *u16) + y) as *u8);'),
-        (r'(?P<addr>.+)\s*,\s*[Xx]'        , 'a -#= *(({addr} + x) as *u8);'),
-        (r'(?P<addr>.+)\s*,\s*[Yy]'        , 'a -#= *(({addr} + y) as *u8);'),
-        (r'(?P<val>.+)'                    , 'a -#= {val};')
-    ],
+    RuleMnemo('sbc', [
+        RuleInst(r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)'   , 'a -#= *(*(({zp} + x) as *u16) as *u8);', ['zp'  ]),
+        RuleInst(r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]'   , 'a -#= *(*(({zp} as *u16) + y) as *u8);', ['zp'  ]),
+        RuleInst(r'(?P<addr>.+)\s*,\s*(?P<reg>[XxYy])', 'a -#= *(({addr} + {reg}) as *u8);'     , ['addr'], ['reg']),
+        RuleInst(r'(?P<val>.+)'                       , 'a -#= {val};'                          , ['val' ])
+    ]),
 
     # Set carry flag
-    'sec': 'carry = true;',
+    RuleMnemo('sec', 'carry = true;'),
 
     # Set decimal mode
-    'sed': 'decimal = true;',
+    RuleMnemo('sed', 'decimal = true;'),
 
     # Set interrupt disable status
-    'sei': 'nointerrupt = true;',
+    RuleMnemo('sei', 'nointerrupt = true;'),
 
     # Store accumulator in memory
-    'sta': [
-        (r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)', '*(*(({zp} + x) as *u16) as *u8) = a;'),
-        (r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]', '*(*(({zp} as *u16) + y) as *u8) = a;'),
-        (r'(?P<addr>.+)\s*,\s*[Xx]'        , '*(({addr} + x) as *u8) = a;'),
-        (r'(?P<addr>.+)\s*,\s*[Yy]'        , '*(({addr} + y) as *u8) = a;'),
-        (r'(?P<val>.+)'                    , '{val} = a;')
-    ],
+    RuleMnemo('sta', [
+        RuleInst(r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)'   , '*(*(({zp} + x) as *u16) as *u8) = a;', ['zp'  ]),
+        RuleInst(r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]'   , '*(*(({zp} as *u16) + y) as *u8) = a;', ['zp'  ]),
+        RuleInst(r'(?P<addr>.+)\s*,\s*(?P<reg>[XxYy])', '*(({addr} + {reg}) as *u8) = a;'     , ['addr'], ['reg']),
+        RuleInst(r'(?P<val>.+)'                       , '{val} = a;'                          , ['val' ])
+    ]),
 
     # Store index X in memory
-    'stx': [
-        (r'(?P<addr>.+)\s*,\s*[Yy]', '*(({addr} + y) as *u8) = x;'),
-        (r'(?P<val>.+)'            , '{val} = x;')
-    ],
+    RuleMnemo('stx', [
+        RuleInst(r'(?P<addr>.+)\s*,\s*[Yy]', '*(({addr} + y) as *u8) = x;', ['addr']),
+        RuleInst(r'(?P<val>.+)'            , '{val} = x;'                 , ['val' ])
+    ]),
 
     # Store index Y in memory
-    'sty': [
-        (r'(?P<addr>.+)\s*,\s*[Xx]', '*(({addr} + x) as *u8) = y;'),
-        (r'(?P<val>.+)'            , '{val} = y;')
-    ],
+    RuleMnemo('sty', [
+        RuleInst(r'(?P<addr>.+)\s*,\s*[Xx]', '*(({addr} + x) as *u8) = y;', ['addr']),
+        RuleInst(r'(?P<val>.+)'            , '{val} = y;'                 , ['val' ])
+    ]),
 
     # Transfer accumulator to index X
-    'tax': 'x = a;',
+    RuleMnemo('tax', 'x = a;'),
 
     # Transfer accumulator to index Y
-    'tay': 'y = a;',
+    RuleMnemo('tay', 'y = a;'),
 
     # Transfer stack pointer to index X
-    'tsx': 'x = s;',
+    RuleMnemo('tsx', 'x = s;'),
 
     # Transfer index X to accumulator
-    'txa': 'a = x;',
+    RuleMnemo('txa', 'a = x;'),
 
     # Transfer index X to stack pointer
-    'txs': 's = x;',
+    RuleMnemo('txs', 's = x;'),
 
     # Transfer index Y to accumulator
-    'tya': 'a = y;',
-}
+    RuleMnemo('tya', 'a = y;'),
+]
 
-_INST_MOS65C02 = _INST_MOS6502 | {
+
+_INST_MOS65C02 = _INST_MOS6502 + [
 #a = *(*({0..255} as *u16) as *u8)
 #a += *(*({0..255} as *u16) as *u8)
 #a +#= *(*({0..255} as *u16) as *u8)
@@ -294,9 +288,10 @@ _INST_MOS65C02 = _INST_MOS6502 | {
 #
 #test_and_set(*({0..255} as *u8))
 #test_and_set(*({0..65535} as *u8))
-}
+]
 
-_INST_ROCKWELL65C02 = _INST_MOS65C02 | {
+
+_INST_ROCKWELL65C02 = _INST_MOS65C02 + [
 #goto {-128..127} if *({0..255} as *u8) $ {0..7}
 #goto {-128..127} if !(*({0..255} as *u8)) $ {0..7}
 #^goto {0..65535} if *({0..255} as *u8) $ {0..7}
@@ -304,14 +299,16 @@ _INST_ROCKWELL65C02 = _INST_MOS65C02 | {
 #
 #*({0..255} as *u8) $ {0..7} = false
 #*({0..255} as *u8) $ {0..7} = true
-}
+]
 
-_INST_WDC65C02 = _INST_ROCKWELL65C02 | {
+
+_INST_WDC65C02 = _INST_ROCKWELL65C02 + [
 #stop_until_reset()
 #wait_until_interrupt()
-}
+]
 
-_INST_HUC6280 = _INST_ROCKWELL65C02 | {
+
+_INST_HUC6280 = _INST_ROCKWELL65C02 + [
 #a = 0
 #x = 0
 #y = 0
@@ -400,13 +397,14 @@ _INST_HUC6280 = _INST_ROCKWELL65C02 | {
 #tst({0..255}, *(({0..255} + x) as *u8))
 #tst({0..255}, *(({0..65535} + x) as *u8))
 #tst({0..255}, *(({0..65535} + x) as *u8))
-}
+]
 
-_INST_WDC65C816 = {
+
+_INST_WDC65C816 = [
 # TODO
-}
+]
 
 
-_INST_SPC700 = _INST_MOS6502 | {
+_INST_SPC700 = _INST_MOS6502 + [
 # TODO some instructions were removed from MOS6502
-}
+]

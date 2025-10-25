@@ -3,30 +3,90 @@
 """
 
 import re
-from typing import Any, Self, Callable
 
-
-# Conversion rule for an instruction
-class InstRule:
+# Conversion rule for a specific instruction
+class RuleInst:
 
     # Construct a rule to convert an instruction
-    def __init__(self, rules: str | tuple[str, str] | list[tuple[str, str]]) -> None:
+    def __init__(self,
+        regex     : str,
+        template  : str,
+        j2_wraps  : list[str] = [],
+        registers : list[str] = []
+    ):
+        """
+        Create a rule to convert an assembly instruction to wiz format.
+
+        @type  regex: str
+        @param regex: Assembly instruction to match
+
+        @type  template: str
+        @param template: Formatting string to generate the corresponding wiz statement
+
+        @type  j2_wraps: list[str]
+        @param j2_wraps: Specify if some matching group should be wrapped in Jinja block
+
+        @type  registers: list[str]
+        @param registers: Specify if some matching group represent registers
+        """
+
+        self.regex     = re.compile(regex)
+        self.template  = template
+        self.j2_wraps  = set(j2_wraps)
+        self.registers = set(registers)
+
+
+    # Transform the instruction
+    def convert(self, operands: str) -> str | None:
+        # try to match the provided operands with the regex template
+        result = self.regex.match(operands)
+        if result is None: return None
+
+        # get the result as a dictionary for manipulation
+        groups = result.groupdict()
+
+        # apply lowering if needed
+        for key in groups:
+            if key in self.registers:
+                groups[key] = groups[key].lower()
+            elif key in self.j2_wraps:
+                groups[key] = f'({{{{ {groups[key]} }}}})'
+
+        return self.template.format(**groups)
+
+
+# Conversion rule for an instruction identified by its mnemonic
+class RuleMnemo:
+
+    # Construct a rule to convert an instruction
+    def __init__(self, name: str, rules: str | list[RuleInst]):
+        """
+        Create a rule to convert an assembly instruction to wiz format.
+
+        @type  name: str
+        @param name: Mnemonic corresponding to this ruleset
+
+        @type  rules: str | list[RuleInst]
+        @param rules: Conversion rule, which can be either:
+        - a simple instruction string to replace the original instruction
+        - a list of (regex, template) pairs to try in sequence
+        """
+
+        self.name = name.lower()
+
         # Simple instruction replacement
         if isinstance(rules, str):
             self.rules  = None
             self.output = rules
 
-        # Single regex-template pair
-        elif isinstance(rules, tuple):
-            self.rules = [(re.compile(rules[0]), rules[1])]
-
         # Multiple regex-template pairs to try in sequence
         elif isinstance(rules, list):
-            self.rules = [(re.compile(regex), temp) for regex, temp in rules]
+            self.rules = rules
+            self.output = None
 
         # Unsupported rule type
         else:
-            raise Exception(f"Invalid instruction rule type: {type(rule)}")
+            raise Exception(f"Invalid instruction rule type: {type(rules)}")
 
 
     # Transform the instruction
@@ -37,12 +97,10 @@ class InstRule:
 
         # Try each rule in sequence until one matches
         else:
-            for regex, template in self.rules:
-                result = regex.match(operands)
-
-                # extract the parameters and format the instruction
+            for rule in self.rules:
+                result = rule.convert(operands)
                 if result is not None:
-                    return template.format(**result.groupdict())
+                    return result
 
             # no match found
             raise Exception(f"Operands do not match the expected format: {operands}")
@@ -52,26 +110,20 @@ class InstRule:
 class AsmParser:
 
     # Regex for reading a identifier
-    _IDENT = re.compile(r'^([a-zA-Z_][\w]*)')
+    _IDENT = re.compile(r'^([a-zA-Z_]\w*)')
 
     # Regex for extracting a mnemonic from an instruction line
-    _MNEMO = re.compile(r'^([a-zA-Z\.]+)')
+    _MNEMO = re.compile(r'^([a-zA-Z][a-zA-Z\.]*)')
 
 
     # Create a configuration for parsing standard assembly syntax
-    def __init__(self, 
-        rules   : dict[str, str | tuple[str, str] | list[tuple[str, str]]],
-        tabsize : int = 4):
+    def __init__(self, rules: list[RuleMnemo], tabsize: int = 4):
         """
         Create a configuration for parsing regular assembly 
         syntax and converting it to wiz format.
 
-        @type  rules: dict[str, str | tuple[str, str] | list[tuple[str, str]]]
-        @param rules: Mapping of mnemonics to conversion rules. 
-        Each rule can be either:
-        - a simple instruction
-        - a regex template to match and apply to a formatting template
-        - a list of such regex-formatting pair to try in sequence
+        @type  rules: list[RuleMnemo]
+        @param rules: Define conversion rules for each mnemonic
 
         @type  tabsize: int (default 4)
         @param tabsize: Number of spaces per tab character
@@ -84,9 +136,9 @@ class AsmParser:
         self.variables : set[str] = set()
 
         # process the rules
-        self.rules: dict[str, InstRule] = {}
-        for mnemo, rule in rules.items():
-            self.rules[mnemo.lower()] = InstRule(rule)
+        self.rules: dict[str, RuleMnemo] = {}
+        for rule in rules:
+            self.rules[rule.name] = rule
 
 
     # Convert assembly instruction to wiz format
@@ -125,7 +177,7 @@ class AsmParser:
                 # look up the rule
                 if mnemo not in self.rules:
                     raise Exception(f"Unsupported instruction: {mnemo}")
-                rule: InstRule = self.rules[mnemo]
+                rule: RuleMnemo = self.rules[mnemo]
 
                 operands: str = code[len(mnemo):].strip()
                 out = rule.convert(operands)
