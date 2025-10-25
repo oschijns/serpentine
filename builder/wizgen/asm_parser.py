@@ -10,27 +10,42 @@ from typing import Any, Self, Callable
 class InstRule:
 
     # Construct a rule to convert an instruction
-    def __init__(self, template: str, regex: str | None = None):
-        # Compile the regex if provided
-        self.regex = None if regex is None else re.compile(regex)
+    def __init__(self, rules: str | tuple[str, str] | list[tuple[str, str]]) -> None:
+        # Simple instruction replacement
+        if isinstance(rules, str):
+            self.rules  = None
+            self.output = rules
 
-        # Store the template
-        self.template: str = template
+        # Single regex-template pair
+        elif isinstance(rules, tuple):
+            self.rules = [(re.compile(rules[0]), rules[1])]
+
+        # Multiple regex-template pairs to try in sequence
+        elif isinstance(rules, list):
+            self.rules = [(re.compile(regex), temp) for regex, temp in rules]
+
+        # Unsupported rule type
+        else:
+            raise Exception(f"Invalid instruction rule type: {type(rule)}")
+
 
     # Transform the instruction
     def convert(self, operands: str) -> str:
         # Simply replace the instruction by the other
-        if self.regex is None:
-            return self.template
+        if self.rules is None:
+            return self.output
 
-        # If a regex is defined, match the operands
+        # Try each rule in sequence until one matches
         else:
-            result = self.regex.match(operands)
-            if result is None:
-                raise Exception(f"Operands do not match the expected format: {operands}")
+            for regex, template in self.rules:
+                result = regex.match(operands)
 
-            # extract the parameters and format the instruction
-            return self.template.format(**result.groupdict())
+                # extract the parameters and format the instruction
+                if result is not None:
+                    return template.format(**result.groupdict())
+
+            # no match found
+            raise Exception(f"Operands do not match the expected format: {operands}")
 
 
 # Assembly parser
@@ -42,10 +57,25 @@ class AsmParser:
     # Regex for extracting a mnemonic from an instruction line
     _MNEMO = re.compile(r'^([a-zA-Z\.]+)')
 
+
     # Create a configuration for parsing standard assembly syntax
     def __init__(self, 
-        rules   : dict[str, str | InstRule],
+        rules   : dict[str, str | tuple[str, str] | list[tuple[str, str]]],
         tabsize : int = 4):
+        """
+        Create a configuration for parsing regular assembly 
+        syntax and converting it to wiz format.
+
+        @type  rules: dict[str, str | tuple[str, str] | list[tuple[str, str]]]
+        @param rules: Mapping of mnemonics to conversion rules. 
+        Each rule can be either:
+        - a simple instruction
+        - a regex template to match and apply to a formatting template
+        - a list of such regex-formatting pair to try in sequence
+
+        @type  tabsize: int (default 4)
+        @param tabsize: Number of spaces per tab character
+        """
 
         # set tab size
         self.tabsize : int = tabsize
@@ -56,12 +86,8 @@ class AsmParser:
         # process the rules
         self.rules: dict[str, InstRule] = {}
         for mnemo, rule in rules.items():
-            mnemo = mnemo.lower()
+            self.rules[mnemo.lower()] = InstRule(rule)
 
-            # instantiate a rule if needed
-            if not isinstance(rule, InstRule):
-                rule = InstRule(rule)
-            self.rules[mnemo] = rule
 
     # Convert assembly instruction to wiz format
     def convert(self, line: str) -> str:

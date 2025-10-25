@@ -4,62 +4,230 @@
 
 
 _INST_MOS6502 = {
-    'adc': 'a +#= {};'              , # Add memory to accumulator with carry
-    'and': 'a &= {};'               , # AND memory with accumulator
-    'asl': '{} <<= 1;'              , # Shift left one bit (memory or accumulator)
-    'bcc': 'goto ({}) if !carry;'   , # Branch on carry clear
-    'bcs': 'goto ({}) if carry;'    , # Branch on carry set
-    'beq': 'goto ({}) if zero;'     , # Branch on result zero
-    'bit': 'bit({});'               , # Test bits in memory with accumulator
-    'bmi': 'goto ({}) if negative;' , # Branch on result minus
-    'bne': 'goto ({}) if !zero;'    , # Branch on result not zero
-    'bpl': 'goto ({}) if !negative;', # Branch on result plus
-    'brk': 'irqcall(0);'            , # Force break
-    'bvc': 'goto ({}) if !overflow;', # Branch on overflow clear
-    'bvs': 'goto ({}) if overflow;' , # Branch on overflow set
-    'clc': 'carry = false;'         , # Clear carry flag
-    'cld': 'decimal = false;'       , # Clear decimal mode
-    'cli': 'nointerrupt = false;'   , # Clear interrupt disable status
-    'clv': 'overflow = false;'      , # Clear overflow flag
-    'cmp': 'cmp(a, {});'            , # Compare memory and accumulator
-    'cpx': 'cmp(x, {});'            , # Compare memory and index X
-    'cpy': 'cmp(y, {});'            , # Compare memory and index Y
-    'dec': '--({});'                , # Decrement memory by one
-    'dex': '--x;'                   , # Decrement index X by one
-    'dey': '--y;'                   , # Decrement index Y by one
-    'eor': 'a ^= {};'               , # XOR memory with accumulator
-    'inc': '++({});'                , # Increment memory by one
-    'inx': '++x;'                   , # Increment index X by one
-    'iny': '++y;'                   , # Increment index Y by one
-    'jmp': 'goto ({});'             , # Jump to new location
-    'jsr': '{}();'                  , # Jump to new location saving return address
-    'lda': 'a = {};'                , # Load accumulator with memory
-    'ldx': 'x = {};'                , # Load index X with memory
-    'ldy': 'y = {};'                , # Load index Y with memory
-    'lsr': '{} >>>= 1;'             , # Shift right one bit (memory or accumulator)
-    'nop': 'nop();'                 , # No operation
-    'ora': 'a |= {};'               , # OR memory with accumulator
-    'pha': 'push(a);'               , # Push accumulator on stack
-    'php': 'push(p);'               , # Push processor status on stack
-    'pla': 'a = pop();'             , # Pull accumulator from stack
-    'plp': 'p = pop();'             , # Pull processor status from stack
-    'rol': '{} <<<<#= 1;'           , # Rotate one bit left (memory or accumulator)
-    'ror': '{} >>>>#= 1;'           , # Rotate one bit right (memory or accumulator)
-    'rti': 'irqreturn;'             , # Return from interrupt
-    'rts': 'return;'                , # Return from subroutine
-    'sbc': 'a -#= {};'              , # Subtract memory from accumulator with borrow
-    'sec': 'carry = true;'          , # Set carry flag
-    'sed': 'decimal = true;'        , # Set decimal mode
-    'sei': 'nointerrupt = true;'    , # Set interrupt disable status
-    'sta': '{} = a;'                , # Store accumulator in memory
-    'stx': '{} = x;'                , # Store index X in memory
-    'sty': '{} = y;'                , # Store index Y in memory
-    'tax': 'x = a;'                 , # Transfer accumulator to index X
-    'tay': 'y = a;'                 , # Transfer accumulator to index Y
-    'tsx': 'x = s;'                 , # Transfer stack pointer to index X
-    'txa': 'a = x;'                 , # Transfer index X to accumulator
-    'txs': 's = x;'                 , # Transfer index X to stack pointer
-    'tya': 'a = y;'                 , # Transfer index Y to accumulator
+    # Add memory to accumulator with carry
+    'adc': [
+        # TODO
+        (r'(?P<val>.+)', 'a +#= {val};')
+    ],
+
+    # AND memory with accumulator
+    'and': [
+        # TODO
+        (r'(?P<val>.+)', 'a &= {val};')
+    ],
+
+    # Shift left one bit (memory or accumulator)
+    'asl': [
+        # TODO
+        (r'(?P<val>.+)', '{val} <<= 1;')
+    ],
+
+    # Branch on carry clear
+    'bcc': (r'(?P<addr>.+)', 'goto ({addr}) if !carry;'),
+
+    # Branch on carry set
+    'bcs': (r'(?P<addr>.+)', 'goto ({addr}) if carry;'),
+
+    # Branch on result zero
+    'beq': (r'(?P<addr>.+)', 'goto ({addr}) if zero;'),
+
+    # Test bits in memory with accumulator
+    'bit': 'bit({});',
+
+    # Branch on result minus
+    'bmi': (r'(?P<addr>.+)', 'goto ({addr}) if negative;'),
+
+    # Branch on result not zero
+    'bne': (r'(?P<addr>.+)', 'goto ({addr}) if !zero;'),
+
+    # Branch on result plus
+    'bpl': (r'(?P<addr>.+)', 'goto ({addr}) if !negative;'),
+
+    # Force break
+    'brk': 'irqcall(0);',
+
+    # Branch on overflow clear
+    'bvc': (r'(?P<addr>.+)', 'goto ({addr}) if !overflow;'),
+
+    # Branch on overflow set
+    'bvs': (r'(?P<addr>.+)', 'goto ({addr}) if overflow;'),
+
+    # Clear carry flag
+    'clc': 'carry = false;',
+
+    # Clear decimal mode
+    'cld': 'decimal = false;',
+
+    # Clear interrupt disable status
+    'cli': 'nointerrupt = false;',
+
+    # Clear overflow flag
+    'clv': 'overflow = false;',
+
+    # Compare memory and accumulator
+    'cmp': [
+        # TODO
+        (r'(?P<val>.+)', 'cmp(a, {val});')
+    ],
+
+    # Compare memory and index X
+    'cpx': (r'(?P<val>.+)', 'cmp(x, {val});'),
+
+    # Compare memory and index Y
+    'cpy': (r'(?P<val>.+)', 'cmp(y, {val});'),
+
+    # Decrement memory by one
+    'dec': [
+        # TODO
+        (r'(?P<val>.+)', '--({val});')
+    ],
+
+    # Decrement index X by one
+    'dex': '--x;',
+
+    # Decrement index Y by one
+    'dey': '--y;',
+
+    # XOR memory with accumulator
+    'eor': [
+        # TODO
+        (r'(?P<val>.+)', 'a ^= {val};')
+    ],
+
+    # Increment memory by one
+    'inc': [
+        # TODO
+        (r'(?P<val>.+)', '++({val});')
+    ],
+
+    # Increment index X by one
+    'inx': '++x;',
+
+    # Increment index Y by one
+    'iny': '++y;',
+
+    # Jump to new location
+    'jmp': [
+        (r'\((?P<addr>.+)\)', 'goto ({addr});'),
+        (r'(?P<addr>.+)'    , 'goto ({addr});')
+    ],
+
+    # Jump to new location saving return address
+    'jsr': (r'(?P<addr>.+)', '{addr}();'),
+
+    # Load accumulator with memory
+    'lda': [
+        # TODO
+        (r'(?P<val>.+)', 'a = {val};')
+    ],
+
+    # Load index X with memory
+    'ldx': [
+        # TODO
+        (r'(?P<val>.+)', 'x = {val};')
+    ],
+
+    # Load index Y with memory
+    'ldy': [
+        # TODO
+        (r'(?P<val>.+)', 'y = {val};')
+    ],
+
+    # Shift right one bit (memory or accumulator)
+    'lsr': [
+        # TODO
+        (r'(?P<val>.+)', '{val} >>>= 1;')
+    ],
+
+    # No operation
+    'nop': 'nop();',
+
+    # OR memory with accumulator
+    'ora': [
+        # TODO
+        (r'(?P<val>.+)', 'a |= {val};')
+    ],
+
+    # Push accumulator on stack
+    'pha': 'push(a);',
+
+    # Push processor status on stack
+    'php': 'push(p);',
+
+    # Pull accumulator from stack
+    'pla': 'a = pop();',
+
+    # Pull processor status from stack
+    'plp': 'p = pop();',
+
+    # Rotate one bit left (memory or accumulator)
+    'rol': [
+        # TODO
+        (r'(?P<val>.+)', '{val} <<<<#= 1;')
+    ],
+
+    # Rotate one bit right (memory or accumulator)
+    'ror': [
+        # TODO
+        (r'(?P<val>.+)', '{val} >>>>#= 1;')
+    ],
+
+    # Return from interrupt
+    'rti': 'irqreturn;',
+
+    # Return from subroutine
+    'rts': 'return;',
+
+    # Subtract memory from accumulator with borrow
+    'sbc': [
+        # TODO
+        (r'(?P<val>.+)', 'a -#= {val};')
+    ],
+
+    # Set carry flag
+    'sec': 'carry = true;',
+
+    # Set decimal mode
+    'sed': 'decimal = true;',
+
+    # Set interrupt disable status
+    'sei': 'nointerrupt = true;',
+
+    # Store accumulator in memory
+    'sta': [
+        # TODO
+        (r'(?P<val>.+)', '{} = a;')
+    ],
+
+    # Store index X in memory
+    'stx': [
+        # TODO
+        (r'(?P<val>.+)', '{} = x;')
+    ],
+
+    # Store index Y in memory
+    'sty': [
+        # TODO
+        (r'(?P<val>.+)', '{} = y;')
+    ],
+
+    # Transfer accumulator to index X
+    'tax': 'x = a;',
+
+    # Transfer accumulator to index Y
+    'tay': 'y = a;',
+
+    # Transfer stack pointer to index X
+    'tsx': 'x = s;',
+
+    # Transfer index X to accumulator
+    'txa': 'a = x;',
+
+    # Transfer index X to stack pointer
+    'txs': 's = x;',
+
+    # Transfer index Y to accumulator
+    'tya': 'a = y;',
 }
 
 _INST_MOS65C02 = _INST_MOS6502 | {

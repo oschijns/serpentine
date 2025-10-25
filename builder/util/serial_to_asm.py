@@ -1,23 +1,25 @@
 """
-    Serialize a sequence of bytes for either C or ASM
+    Serialize a sequence of bytes into ASM syntax
 """
 
-import numpy as np
-
-from numba import njit, prange
-from numpy import ndarray
-
+from numpy               import ndarray
 from util.text_formatter import TextFormatter
 
 
 # Serialize buffers of data using assembly syntax
-class SerialAsm:
+class SerialToAsm:
 
     # period labels
     _LABELS_PERIOD = ['.byte', '.word', '.long', '.quad', '.octa']
 
+
     # D-labels
     _LABELS_D = ['db', 'dw', 'dd', 'dq', 'ddq']
+
+
+    # GBBasic label (only supports 8-bits words)
+    _LABELS_GBASIC = ['data']
+
 
     # format integer into lower case hexadecimal string
     _FORMAT_HEX_LOWER = [
@@ -28,6 +30,7 @@ class SerialAsm:
         lambda n: format(int(n), '032x'),
     ]
 
+
     # format integer into upper case hexadecimal string
     _FORMAT_HEX_UPPER = [
         lambda n: format(int(n), '02X' ),
@@ -37,20 +40,25 @@ class SerialAsm:
         lambda n: format(int(n), '032X'),
     ]
 
+
     # Create a config for serializing buffer of data into assembly syntax
     def __init__(self, 
         notation    : str  = '0x',
         uppercase   : bool = False,
         labels      : str  = 'PERIOD',
         text_format : TextFormatter = None):
+        """
+        Create a config for serializing buffer of data into assembly syntax
+        """
 
         # Which set of labels to use
-        if   labels == 'PERIOD' : self.labels = SerialAsm._LABELS_PERIOD
-        elif labels == 'D'      : self.labels = SerialAsm._LABELS_D
+        if   labels == 'PERIOD' : self.labels = SerialToAsm._LABELS_PERIOD
+        elif labels == 'D'      : self.labels = SerialToAsm._LABELS_D
+        elif labels == 'GBASIC' : self.labels = SerialToAsm._LABELS_GBASIC
         else: raise Exception(f"Unknown label set {labels}.")
 
         # Select the hexadecimal notation to use
-        self.format = SerialAsm._FORMAT_HEX_UPPER if uppercase else SerialAsm._FORMAT_HEX_LOWER
+        self.format = SerialToAsm._FORMAT_HEX_UPPER if uppercase else SerialToAsm._FORMAT_HEX_LOWER
 
         # Select how to annotate the hexadecimal numbers
         if   notation == '0x' : self.annote = lambda s: f'0x{s}'
@@ -110,7 +118,7 @@ class SerialAsm:
 
     # Serialize list of arbitrary size
     def serialize_list(self, 
-        array     : list, 
+        array     : list[int], 
         intsize   : int  = 1, 
         zeroguard : bool = False
     ) -> str:
@@ -129,6 +137,17 @@ class SerialAsm:
         @rtype: str
         @returns: Assembly syntax that can be embedded using Jinja2
         """
+
+        idx = self._idx_size(intsize)
+        lbl = self.labels[idx]
+        fmt = self.format[idx]
+        tkn = [self.annote(fmt(n)) for n in array]
+
+        # add a zero guard if requested
+        if zeroguard: tkn.append('0')
+
+        # generate assembly line
+        return '{} {}'.format(lbl, ', '.join(tkn))
 
 
     # Serialize a string
@@ -160,7 +179,7 @@ class SerialAsm:
 
         # generate assembly lines
         output = []
-        for i, line in enumerate(lines):
+        for line in lines:
             # serialize the line with a zero guard at the end
             tkn = [self.annote(fmt(n)) for n in line]
             ent = '{} {}, 0'.format(lbl, ', '.join(tkn))
@@ -169,10 +188,3 @@ class SerialAsm:
         # create a paragraph
         return '\n'.join(output)
 
-
-
-
-# Serialize to C sources
-@njit
-def serial_to_c(buffer: ndarray, zeroguard: bool = False) -> str:
-    pass
