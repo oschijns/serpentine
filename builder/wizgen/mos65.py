@@ -6,20 +6,26 @@
 _INST_MOS6502 = {
     # Add memory to accumulator with carry
     'adc': [
-        # TODO
-        (r'(?P<val>.+)', 'a +#= {val};')
+        (r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)', 'a +#= *(*(({zp} + x) as *u16) as *u8);'),
+        (r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]', 'a +#= *(*(({zp} as *u16) + y) as *u8);'),
+        (r'(?P<addr>.+)\s*,\s*[Xx]'        , 'a +#= *(({addr} + x) as *u8);'),
+        (r'(?P<addr>.+)\s*,\s*[Yy]'        , 'a +#= *(({addr} + y) as *u8);'),
+        (r'(?P<val>.+)'                    , 'a +#= {val};')
     ],
 
     # AND memory with accumulator
     'and': [
-        # TODO
-        (r'(?P<val>.+)', 'a &= {val};')
+        (r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)', 'a &= *(*(({zp} + x) as *u16) as *u8);'),
+        (r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]', 'a &= *(*(({zp} as *u16) + y) as *u8);'),
+        (r'(?P<addr>.+)\s*,\s*[Xx]'        , 'a &= *(({addr} + x) as *u8);'),
+        (r'(?P<addr>.+)\s*,\s*[Yy]'        , 'a &= *(({addr} + y) as *u8);'),
+        (r'(?P<val>.+)'                    , 'a &= {val};')
     ],
 
     # Shift left one bit (memory or accumulator)
     'asl': [
-        # TODO
-        (r'(?P<val>.+)', '{val} <<= 1;')
+        (r'(?P<addr>.+)\s*,\s*[Xx]', '*(({addr} + x) as *u8) <<= 1;'),
+        (r'(?P<val>.+)'            , '{val} <<= 1;')
     ],
 
     # Branch on carry clear
@@ -32,7 +38,7 @@ _INST_MOS6502 = {
     'beq': (r'(?P<addr>.+)', 'goto ({addr}) if zero;'),
 
     # Test bits in memory with accumulator
-    'bit': 'bit({});',
+    'bit': (r'(?P<val>.+)', 'bit({val});'),
 
     # Branch on result minus
     'bmi': (r'(?P<addr>.+)', 'goto ({addr}) if negative;'),
@@ -66,8 +72,11 @@ _INST_MOS6502 = {
 
     # Compare memory and accumulator
     'cmp': [
-        # TODO
-        (r'(?P<val>.+)', 'cmp(a, {val});')
+        (r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)', 'cmp(a, *(*(({zp} + x) as *u16) as *u8));'),
+        (r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]', 'cmp(a, *(*(({zp} as *u16) + y) as *u8));'),
+        (r'(?P<addr>.+)\s*,\s*[Xx]'        , 'cmp(a, *(({addr} + x) as *u8));'),
+        (r'(?P<addr>.+)\s*,\s*[Yy]'        , 'cmp(a, *(({addr} + y) as *u8));'),
+        (r'(?P<val>.+)'                    , 'cmp(a, {val});')
     ],
 
     # Compare memory and index X
@@ -78,8 +87,8 @@ _INST_MOS6502 = {
 
     # Decrement memory by one
     'dec': [
-        # TODO
-        (r'(?P<val>.+)', '--({val});')
+        (r'(?P<addr>.+)\s*,\s*[Xx]', '-- *(({addr} + x) as *u8);'),
+        (r'(?P<val>.+)'            , '--({val});')
     ],
 
     # Decrement index X by one
@@ -90,14 +99,17 @@ _INST_MOS6502 = {
 
     # XOR memory with accumulator
     'eor': [
-        # TODO
-        (r'(?P<val>.+)', 'a ^= {val};')
+        (r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)', 'a ^= *(*(({zp} + x) as *u16) as *u8);'),
+        (r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]', 'a ^= *(*(({zp} as *u16) + y) as *u8);'),
+        (r'(?P<addr>.+)\s*,\s*[Xx]'        , 'a ^= *(({addr} + x) as *u8);'),
+        (r'(?P<addr>.+)\s*,\s*[Yy]'        , 'a ^= *(({addr} + y) as *u8);'),
+        (r'(?P<val>.+)'                    , 'a ^= {val};')
     ],
 
     # Increment memory by one
     'inc': [
-        # TODO
-        (r'(?P<val>.+)', '++({val});')
+        (r'(?P<addr>.+)\s*,\s*[Xx]', '++ *(({addr} + x) as *u8);'),
+        (r'(?P<val>.+)'            , '++({val});')
     ],
 
     # Increment index X by one
@@ -108,35 +120,38 @@ _INST_MOS6502 = {
 
     # Jump to new location
     'jmp': [
-        (r'\((?P<addr>.+)\)', 'goto ({addr});'),
-        (r'(?P<addr>.+)'    , 'goto ({addr});')
+        (r'\(\s*(?P<addr>.+)\s*\)', 'goto *(({addr}) as *u8);'),
+        (r'(?P<addr>.+)'          , 'goto ({addr});')
     ],
 
     # Jump to new location saving return address
-    'jsr': (r'(?P<addr>.+)', '{addr}();'),
+    'jsr': (r'(?P<func>.+)', '{func}();'),
 
     # Load accumulator with memory
     'lda': [
-        # TODO
-        (r'(?P<val>.+)', 'a = {val};')
+        (r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)', 'a = *(*(({zp} + x) as *u16) as *u8);'),
+        (r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]', 'a = *(*(({zp} as *u16) + y) as *u8);'),
+        (r'(?P<addr>.+)\s*,\s*[Xx]'        , 'a = *(({addr} + x) as *u8);'),
+        (r'(?P<addr>.+)\s*,\s*[Yy]'        , 'a = *(({addr} + y) as *u8);'),
+        (r'(?P<val>.+)'                    , 'a = {val};')
     ],
 
     # Load index X with memory
     'ldx': [
-        # TODO
-        (r'(?P<val>.+)', 'x = {val};')
+        (r'(?P<addr>.+)\s*,\s*[Yy]', 'x = *(({addr} + y) as *u8);'),
+        (r'(?P<val>.+)'            , 'x = {val};')
     ],
 
     # Load index Y with memory
     'ldy': [
-        # TODO
-        (r'(?P<val>.+)', 'y = {val};')
+        (r'(?P<addr>.+)\s*,\s*[Xx]', 'y = *(({addr} + x) as *u8);'),
+        (r'(?P<val>.+)'            , 'y = {val};')
     ],
 
     # Shift right one bit (memory or accumulator)
     'lsr': [
-        # TODO
-        (r'(?P<val>.+)', '{val} >>>= 1;')
+        (r'(?P<addr>.+)\s*,\s*[Xx]', '*(({addr} + x) as *u8) >>>= 1;'),
+        (r'(?P<val>.+)'            , '{val} >>>= 1;')
     ],
 
     # No operation
@@ -144,8 +159,11 @@ _INST_MOS6502 = {
 
     # OR memory with accumulator
     'ora': [
-        # TODO
-        (r'(?P<val>.+)', 'a |= {val};')
+        (r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)', 'a |= *(*(({zp} + x) as *u16) as *u8);'),
+        (r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]', 'a |= *(*(({zp} as *u16) + y) as *u8);'),
+        (r'(?P<addr>.+)\s*,\s*[Xx]'        , 'a |= *(({addr} + x) as *u8);'),
+        (r'(?P<addr>.+)\s*,\s*[Yy]'        , 'a |= *(({addr} + y) as *u8);'),
+        (r'(?P<val>.+)'                    , 'a |= {val};')
     ],
 
     # Push accumulator on stack
@@ -162,14 +180,14 @@ _INST_MOS6502 = {
 
     # Rotate one bit left (memory or accumulator)
     'rol': [
-        # TODO
-        (r'(?P<val>.+)', '{val} <<<<#= 1;')
+        (r'(?P<addr>.+)\s*,\s*[Xx]', '*(({addr} + x) as *u8) <<<<#= 1;'),
+        (r'(?P<val>.+)'            , '{val} <<<<#= 1;')
     ],
 
     # Rotate one bit right (memory or accumulator)
     'ror': [
-        # TODO
-        (r'(?P<val>.+)', '{val} >>>>#= 1;')
+        (r'(?P<addr>.+)\s*,\s*[Xx]', '*(({addr} + x) as *u8) >>>>#= 1;'),
+        (r'(?P<val>.+)'            , '{val} >>>>#= 1;')
     ],
 
     # Return from interrupt
@@ -180,8 +198,11 @@ _INST_MOS6502 = {
 
     # Subtract memory from accumulator with borrow
     'sbc': [
-        # TODO
-        (r'(?P<val>.+)', 'a -#= {val};')
+        (r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)', 'a -#= *(*(({zp} + x) as *u16) as *u8);'),
+        (r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]', 'a -#= *(*(({zp} as *u16) + y) as *u8);'),
+        (r'(?P<addr>.+)\s*,\s*[Xx]'        , 'a -#= *(({addr} + x) as *u8);'),
+        (r'(?P<addr>.+)\s*,\s*[Yy]'        , 'a -#= *(({addr} + y) as *u8);'),
+        (r'(?P<val>.+)'                    , 'a -#= {val};')
     ],
 
     # Set carry flag
@@ -195,20 +216,23 @@ _INST_MOS6502 = {
 
     # Store accumulator in memory
     'sta': [
-        # TODO
-        (r'(?P<val>.+)', '{} = a;')
+        (r'\(\s*(?P<zp>.+)\s*,\s*[Xx]\s*\)', '*(*(({zp} + x) as *u16) as *u8) = a;'),
+        (r'\(\s*(?P<zp>.+)\s*\)\s*,\s*[Yy]', '*(*(({zp} as *u16) + y) as *u8) = a;'),
+        (r'(?P<addr>.+)\s*,\s*[Xx]'        , '*(({addr} + x) as *u8) = a;'),
+        (r'(?P<addr>.+)\s*,\s*[Yy]'        , '*(({addr} + y) as *u8) = a;'),
+        (r'(?P<val>.+)'                    , '{val} = a;')
     ],
 
     # Store index X in memory
     'stx': [
-        # TODO
-        (r'(?P<val>.+)', '{} = x;')
+        (r'(?P<addr>.+)\s*,\s*[Yy]', '*(({addr} + y) as *u8) = x;'),
+        (r'(?P<val>.+)'            , '{val} = x;')
     ],
 
     # Store index Y in memory
     'sty': [
-        # TODO
-        (r'(?P<val>.+)', '{} = y;')
+        (r'(?P<addr>.+)\s*,\s*[Xx]', '*(({addr} + x) as *u8) = y;'),
+        (r'(?P<val>.+)'            , '{val} = y;')
     ],
 
     # Transfer accumulator to index X
