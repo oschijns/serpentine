@@ -1,0 +1,56 @@
+import "src/nes";
+import "src/define";
+
+namespace math {
+
+    // factors for multiplications based on powers of 2
+    let F2   = 1;
+    let F4   = 2;
+    let F8   = 3;
+    let F16  = 4;
+    let F32  = 5;
+    let F64  = 6;
+    let F128 = 7;
+    let F256 = 8;
+
+
+    // multiply the number by the factor
+    inline func mul(let num : *const u8, let factor : u8) : u8 in a {
+        a = 0;
+        // iterate over each bit of the factor from greatest to smallest
+        inline for let i in 7 .. 0 by -1 {
+            // only start shifting left once the 
+            // highest bit have been encountered
+            if (factor >>> 1) >= (1 <<< i) { a <<<= 1; }
+            // add the initial value to the sum
+            if factor$i { a += *num; }
+        }
+        return a;
+    }
+
+    // multiply the number by the factor (store the high bytes in the x register)
+    inline func mul_word(let num : *const u8, let factor : u8) : u8 in a {
+        x = 0;
+        a = 0;
+        // iterate over each bit of the factor from greatest to smallest
+        inline for let i in 7 .. 0 by -1 {
+            // only start shifting left once the 
+            // highest bit have been encountered
+            if (factor >>> 1) >= (1 <<< i) { a <<<= 1; }
+            // add the initial value to the sum
+            if factor$i {
+                a += *num;
+                if carry { ++x; }
+            }
+        }
+        return a;
+    }
+
+    // clamp a value in both positive and negative
+    inline func clamp (value : u8 in a, let min : u8, let max : u8) : u8 in a {
+        if      a < min { a = min; }
+        else if a > max { a = max; }
+        return a;
+    }
+
+}

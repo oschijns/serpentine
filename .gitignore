@@ -11,8 +11,8 @@ output/
 
 # Python cache
 builder/env/
-builder/__pycache__/
-
+builder/tileset/__pycache__/
+builder/wizgen/processors/__pycache__/
 
 # NPM cache
 music-tool/node_modules/

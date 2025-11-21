@@ -4,6 +4,22 @@
 
 import re
 
+
+# Convert an integer value to wiz format
+def convert_integer(value: str) -> str:
+    # Hexadecimal value
+    if value.startswith('$'):
+        return f'0x{value[1:]}'
+
+    # Binary value
+    elif value.startswith('%'):
+        return f'0b{value[1:]}'
+
+    # Decimal value
+    else:
+        return value
+
+
 # Conversion rule for a specific instruction
 class RuleInst:
 
@@ -104,6 +120,48 @@ class RuleMnemo:
 
             # no match found
             raise Exception(f"Operands do not match the expected format: {operands}")
+
+
+# Conversion rule for a macro instruction
+class RuleMacro:
+
+    _CONVERT = {
+        '!'  : 'not',
+        '='  : '==',
+        '&&' : 'and',
+        '||' : 'or',
+    }
+
+    # Construct a rule to convert a macro instruction
+    def __init__(self, regex: str, template: str):
+        """
+        Convert a macro instruction to jinja syntax.
+
+        @type  regex: str
+        @param regex: The preprocessing macro to identify
+
+        @type  template: str
+        @param template: The template to generate the corresponding jinja statement
+        """
+        self.regex    = re.compile(regex)
+        self.template = template
+
+
+    # Transform the macro
+    def convert(self, operands: str) -> str:
+        # try to match the provided operands with the regex template
+        result = self.regex.match(operands)
+        if result is None: return None
+
+        # get the result as a dictionary for manipulation
+        groups = result.groupdict()
+
+        # apply lowering if needed
+        for key in groups:
+            # transforms the condition to python syntax
+            groups[key] = groups[key].lower()
+
+        return self.template.format(**groups)
 
 
 # Assembly parser

@@ -1,0 +1,89 @@
+/**
+ * Clean little game for the NES
+ * Author: Olivier SCHYNS
+ * */
+
+import "src/nes";
+import "src/define";
+import "src/math";
+import "src/video";
+import "src/audio";
+
+import "src/test";
+
+
+in program {
+
+	// start of the program
+	#[fallthrough] func main () {
+		// init the NES
+		decimal     = false;       // decimal not supported
+		nointerrupt = true;        // disable interrupts
+		s = x = 0xFF;              // init stack
+		nes.ppu.control = a = OFF; // disable rendering
+		nes.ppu.mask    = a;
+
+		// disable DMC interrupts
+		nes.apu.frame_counter = a = nes.apu.FRAME_COUNTER_IRQ_DISABLE;
+		video.wait_ppu_init();
+		video.init_nametable();
+        video.init_palette();
+
+        {
+            test.prepare_nametable();
+        }
+
+		video.reset_scroll();
+        audio.init();
+
+		// re-enable rendering
+		nes.ppu.control = a = 0
+		| nes.ppu.CONTROL_NMI
+		| nes.ppu.CONTROL_OBJ_8x16
+		| nes.ppu.CONTROL_BG_PATTERN_0;
+		nes.ppu.mask = a = 0
+		| nes.ppu.MASK_LEFTMOST_BG
+		| nes.ppu.MASK_LEFTMOST_OBJ
+		| nes.ppu.MASK_RENDER_BG
+		| nes.ppu.MASK_RENDER_OBJ;
+		nointerrupt = false; // re-enable interrupts
+
+		// infinite loop
+		do {
+
+            {
+                test.main_loop();
+            }
+
+			// wait for draw request
+			video.wait_request();
+
+		} while true;
+	}
+
+    // interrupt called at the end of every frame
+    #[nmi] func vblank () {
+        store_registers();
+        {
+
+        }
+        audio.update_tempo();
+        video.submit_oam_to_ppu();
+        irq_counter = a = 0;
+        load_registers();
+    }
+
+    // interrupt called at every scanline
+    #[irq] func scanline () {
+        store_registers();
+        {
+
+        }
+        ++irq_counter;
+        load_registers();
+    }
+
+    const @ 0xFFFA = [vblank, main, scanline];
+}
+
+

@@ -1,0 +1,6 @@
+# Some arbitrary config file
+---
+input: ./assets/tileset.png
+palette: ./assets/pal.png
+system: nes
+output: ./assets/tileset_var.png

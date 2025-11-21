@@ -1,0 +1,268 @@
+/**
+ * Handle drawing to the screen
+ */
+
+import "src/nes";
+import "src/define";
+import "src/math";
+
+namespace video {
+
+    in zeropage {
+
+        // specify if the sprites should be refreshed
+        var draw_request : u8;
+
+        // used to read a sequence of numbers and write them into the PPU buffer
+        var data_ptr  : *u8;
+        var data_size :  u8;
+    }
+
+    in ram {
+
+        // control the main scrolling of the screen
+        var main_scroll : Vec2;
+    }
+
+    // bit map for drawing
+    let REQUEST_WAIT_FRAME     = 0b01;
+    let REQUEST_UPDATE_SPRITES = 0b10;
+
+    in program {
+
+        // write the value in decimal over three digits
+        func print_decimal (number : u8 in a) {
+            // resolve hundreds
+            x = '0';
+            while a >= 100 {
+                a -#= 100;
+                ++x;
+            }
+            nes.ppu.data = x;
+
+            // resolve tens
+            x = '0';
+            while a >= 10 {
+                a -#= 10;
+                ++x;
+            }
+            nes.ppu.data = x;
+
+            // resolve units
+            nes.ppu.data = a += '0';
+        }
+
+
+        // write the value in hexadecimal over two digits
+        func print_hexadecimal(number : u8 in x) {
+
+            // print a single hexadecimal digit
+            inline func _hexa_digit(digit : u8 in a) {
+                if digit < 10 { digit += '0';      }
+                else          { digit += 'A' - 10; }
+                nes.ppu.data = digit;
+            }
+            _hexa_digit(number >>> 4);
+            _hexa_digit(number & 0xF);
+        }
+
+        // draw a sprite made of multiple sprites on the screen
+        func draw_metasprite(
+            template   : *u8 in data_ptr,  // metasprite template
+            oam_index  :  u8 in x,         // index to write to in the OAM buffer
+            size       :  u8 in data_size, // size of the data to write
+            position_x :  u8 in b0,        // position along the X-axis
+            position_y :  u8 in b1,        // position along the Y-axis
+            palette    :  u8 in b2         // palette swap
+        ) {
+            y = 0;
+            do {
+                oam_buffer[x++] = a = template[y++] + position_y;
+                oam_buffer[x++] = a = template[y++];
+                oam_buffer[x++] = a = template[y++] | palette;
+                oam_buffer[x++] = a = template[y++] + position_x;
+            } while y < size;
+        }
+
+        // draw a group of metatiles on the screen
+        func draw_metatiles(
+            sequence : *u8 in metatiles_address, // sequence of metatiles' indexes
+            length   :  u8 in metatiles_length,  // length of the sequence
+            table    :  u8 in b0, // high byte of the nametable to write to (0x20, 0x24, 0x28, 0x2C)
+            position :  u8 in b1  // position to start at (in a 8x7 grid)
+        ) {
+            let WIDTH = 4;
+
+            // define the tables where the metatiles definition are stored
+            let SIZE = WIDTH * WIDTH + 1;
+            let METATILES = [(&metatiles as u16) + METATILES_COUNT * i for let i in 0 .. SIZE - 1];
+
+
+            // address of the nametable to write to
+            var ppu_address @ &w2 : u16;
+
+            /*
+                Given a position which value is in the range [0, 56[
+                we have the following bit layout: '--hhlrrr'
+
+                Pattern | Description                        | Op
+                --------|------------------------------------|-----
+                'rrr'   | position along X-axis              |  × 4
+                'l'     | low  bit  of position along Y-axis | << 4
+                'hh'    | high bits of position along Y-axis | >> 4
+            */
+
+            // store the position along X in a temporary variable
+            var pos_x @ &b4 : u8;
+            pos_x = a = (position & 0b111) <<< math.F4;
+            <:ppu_address = a = ((position & 0b1000) <<< 4) | pos_x;
+            >:ppu_address = a = (position >>> 4) + table;
+
+            // draw each row of the metatiles sequence into the PPU
+            inline for let i in 0 .. WIDTH - 1 {
+
+                // prepare the PPU address
+                a = nes.ppu.status;
+                nes.ppu.address = a = >:ppu_address;
+                nes.ppu.address = a = <:ppu_address + (i * nes.ppu.NAMETABLE_WIDTH_TILE_MAP);
+
+                // iterate over each metatile in the sequence
+                y = 0;
+                do {
+                    // get the metatile definition index
+                    x = a = sequence[y++];
+
+                    // draw each cell of the row of the metatile
+                    inline for let j in 0 .. WIDTH - 1 {
+                        nes.ppu.data = a = (METATILES[i * WIDTH + j] as *u8)[x];
+                    }
+
+                } while y < length;
+            }
+
+            // prepare the PPU address
+            a = nes.ppu.status;
+            nes.ppu.address = a = table    + >:nes.ppu.NAMETABLE_OFFSET_ATTRIBUTE_MAP;
+            nes.ppu.address = a = position + <:nes.ppu.NAMETABLE_OFFSET_ATTRIBUTE_MAP;
+
+            // iterate over each metatile in the sequence
+            y = 0;
+            do {
+                // get the metatile definition index
+                x = a = sequence[y++];
+
+                // get the attribute data from the last array
+                nes.ppu.data = a = (METATILES[SIZE - 1] as *u8)[x];
+
+            } while y < length;
+        }
+    }
+
+
+    // wait for PPU (2 vertical blanks)
+    inline func wait_ppu_init () {
+        x = 2;
+        do { do {} while !nes.ppu.status$7; } while { --x; } && !zero;
+    }
+
+    // wait for draw request
+    inline func wait_request () {
+        draw_request = a = 0
+            | REQUEST_WAIT_FRAME 
+            | REQUEST_UPDATE_SPRITES;
+        do {a = draw_request;} while !zero;
+    }
+
+    // compute the address to position the cursor in the nametable
+    let NAMETABLE_CURSOR(index, cursor_x, cursor_y) = nes.ppu.ADDRESS_NAMETABLE_DATA 
+        + index    * nes.ppu.NAMETABLE_SIZE
+        + cursor_y * nes.ppu.NAMETABLE_WIDTH_TILE_MAP 
+        + cursor_x;
+
+    // write the appropriate address in the PPU
+    inline func set_ppu_address (let address : u16) {
+        a = nes.ppu.status;
+        nes.ppu.address = a = >:address;
+        nes.ppu.address = a = <:address;
+    }
+
+    // write a single value in the PPU buffer
+    inline func write_value_in_ppu (val : u8 in x, size : u8 in y) {
+        do { nes.ppu.data = val; } while { --size; } && !zero;
+    }
+
+    // initialize the PPU nametable
+    inline func init_nametable () {
+        set_ppu_address(nes.ppu.ADDRESS_NAMETABLE_DATA);
+        x = >:nes.ppu.NAMETABLE_SIZE * 2;
+        do {
+            y = 0;
+            do { nes.ppu.data = a; } while { ++y; } && !zero;
+        } while { --x; } && !zero;
+    }
+
+    // initialize the PPU palette
+    inline func init_palette () {
+        set_ppu_address(nes.ppu.ADDRESS_PALETTE_DATA);
+        x = 0;            
+        do {
+            nes.ppu.data = a = initial_palette[x++];
+        } while x != initial_palette.len;
+    }
+
+    // reset the PPU scroll
+    inline func reset_scroll () {
+        a = nes.ppu.status; // reset the PPU high/low latch
+        nes.ppu.scroll = a = 0;
+        nes.ppu.scroll = a;
+        main_scroll.x_ = a;
+        main_scroll.y_ = a;
+    }
+
+    // set the scroll
+    inline func update_scroll () {
+        a = nes.ppu.status; // reset the PPU high/low latch
+        nes.ppu.scroll = a = main_scroll.x_;
+        nes.ppu.scroll = a = main_scroll.y_;
+    }
+
+    // set the scroll
+    inline func set_scroll (sx : u8 in x, sy : u8 in y) {
+        a = nes.ppu.status; // reset the PPU high/low latch
+        nes.ppu.scroll = sx;
+        nes.ppu.scroll = sy;
+    }
+
+    // write the text to the screen
+    inline func print(let txt_ptr : *u8) {
+        y = 0;
+        while { a = txt_ptr[y]; } && !zero {
+            nes.ppu.data = a;
+            ++y;
+        }
+    }
+
+    // push OAM buffer data to the ppu
+    inline func submit_oam_to_ppu () {
+        if {a = draw_request & REQUEST_UPDATE_SPRITES;} && !zero {
+            nes.ppu.oam.address = a = <:&oam_buffer;
+            nes.ppu.oam.dma     = a = >:&oam_buffer;
+        }
+        draw_request = a = OFF;
+    }
+
+    // setup IRQ call for per-scanline scrolling
+    inline func setup_irq (let wait_scanlines : u8) {
+        nes.mmc3.irq.disable = a = OFF; // acknowledge pending interrupts
+        nes.mmc3.irq.latch   = a = wait_scanlines;
+        nes.mmc3.irq.reload  = a;
+        nes.mmc3.irq.disable = a = OFF; // latch in the countdown value
+        nes.mmc3.irq.enable  = a;       // enable the IRQ counter
+    }
+
+    // print an address on the screen
+    inline func print_address(let address : u16) {
+        print_hexadecimal(>:address);
+        print_hexadecimal(<:address);
+    }
+}

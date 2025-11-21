@@ -1,0 +1,8 @@
+# Some arbitrary config file
+---
+input: ./assets/ferries.png
+palette: ./assets/pal.png
+charset: ./assets/charset.png
+charset-size: 36
+system: nes
+output: ./assets/tileset.png

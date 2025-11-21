@@ -55,7 +55,7 @@ def main():
         help="Processing a spritesheet")
 
     parser.add_argument('--snes-bg-mode',
-        dest='snes_mode',
+        dest='snes_bg_mode',
         choices=['2bpp', '4bpp', '8bpp', 'mode7'],
         help="SNES supports multiple background modes")
 

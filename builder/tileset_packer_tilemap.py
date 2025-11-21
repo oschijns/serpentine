@@ -70,7 +70,7 @@ def main():
     # Should we include a character set in the tilemap
     charset = None
     if args.charset is not None:
-        charset = (args.charset, args.charset_offset, args.charset_size)
+        charset = (args.charset, int(args.charset_offset), int(args.charset_size))
 
     config = Config(
         args.inputs,

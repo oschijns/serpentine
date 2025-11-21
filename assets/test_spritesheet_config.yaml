@@ -1,0 +1,7 @@
+# Some arbitrary config file
+---
+input: ["./assets/test-anim.json"]
+palette: ./assets/pal.png
+system: nes
+output-json: ./assets/spritesheet.json
+output-tileset: ./assets/spritesheet.png
