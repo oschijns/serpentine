@@ -2,6 +2,7 @@
     Preconfigured builder for cc65 projects.
 """
 
+import re
 from pathlib           import Path
 from logging           import Logger
 from SCons.Builder     import Builder
@@ -39,46 +40,54 @@ class CC65Builder:
 
         @type  include_paths: list[Path]
         @param include_paths: The list of include paths for the compiler and assembler
+
+        @type  libraries: list[Path]
+        @param libraries: The list of libraries to link against
         """
 
         self.root_dir: Path   = root_dir
         self.logger  : Logger = logger
         self.rom_name: str    = rom_name
+        self.system  : str    = target_system.lower()
+
+        if self.system in ['c64', 'nes', 'appleII', 'a2600', 'a5200', 'a7800']:
+            cpu = '6502'
+        elif self.system in ['pce']:
+            cpu = '65c02' # huc6280 is not available, closest is thus 65c02
+        else:
+            raise ValueError(f'Unsupported target system: {target_system}')
+
+        includes = []
+        for path in include_paths:
+            includes.append(f'-I{str(path)}')
+        includes = ' '.join(includes)
 
         # Define the compiler, assembler and linker to use
         self.env: Environment = Environment(
-            # C config
-            CC      = 'cc65',
-            CCFLAGS = ['-I', 'libs/nesdoug', '-I', 'target/source', '-Oirs', '--add-source', '--cpu', '6502'],
-
-            # ASM config
-            AS      = 'ca65',
-            ASFLAGS = ['-I', 'libs/nesdoug', '-I', 'target/source', '-g'],
-
-            # Linker config
+            CC   = 'cc65',
+            AS   = 'ca65',
             LINK = 'ld65',
-            LINKFLAGS = ['-C', 'libs/nesdoug/nrom_32k_vert.cfg'],
         )
 
         # Define the compiler step
         compiler = Builder(
-            action     = '$CC $CCFLAGS $_CCCOMCOM -o $TARGET $SOURCE',
+            action     = f'$CC $CCFLAGS {includes} --cpu {cpu} -Cl -Oirs --add-source -o $TARGET $SOURCE',
             src_suffix = '.c',
             suffix     = '.s'
         )
 
         # Define the assembler step
         assembler = Builder(
-            action     = '$AS $ASFLAGS -o $TARGET $SOURCE',
+            action     = f'$AS $ASFLAGS {includes} --cpu {cpu} -g -o $TARGET $SOURCE',
             src_suffix = '.s',
             suffix     = '.o'
         )
 
         # Define the linker step
         linker = Builder(
-            action     = '$LINK $LINKFLAGS -o $TARGET $SOURCES nes.lib',
+            action     = f'$LINK $LINKFLAGS -C {str(linker_config)} -o $TARGET $SOURCES',
             src_suffix = '.o',
-            suffix     = '.nes'
+            suffix     = f'.{self.system}'
         )
 
         self.env.Append(BUILDERS = {
@@ -108,6 +117,7 @@ class CC65Builder:
             self.env.Glob(str(dir_main / '*.s'), recursive = True) +
             self.env.Glob(str(dir_gen  / '*.s'))
         )
+        dir_l: list[str] = self.env.Glob(str(self.root_dir / 'libs' / '*.lib'))
 
         # Objects files to link
         objects: list = []
@@ -128,5 +138,5 @@ class CC65Builder:
             self.logger.info(f'Assembled {src}')
 
         # Link all object files into the final ROM
-        self.env.Link(self.rom_name, objects)
+        self.env.Link(self.rom_name, objects + dir_l)
         self.logger.info(f'Linked ROM {self.rom_name}')
