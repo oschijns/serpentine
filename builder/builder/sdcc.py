@@ -16,11 +16,21 @@ class SDCCBuilder:
     def __init__(self,
         root_dir     : Path,
         logger       : Logger,
-        rom_name     : str,
         target_system: str,
+        linker_config: Path,
+        output_binary: Path,
+        output_symbol: Path | None = None,
         include_paths: list[Path] = []):
         """
-        Create a builder to compile, assemble and link sdcc projects
+        Create a builder to compile, assemble and link sdcc projects.
+        Supports the following targets:
+        - 'sm83:gb'
+        - 'sm83:ap'
+        - 'sm83:duck'
+        - 'z80:sms'
+        - 'z80:gg'
+        - 'z80:msxdos'
+        - 'mos6502:nes'
 
         @type  root_dir: Path
         @param root_dir: The root directory of the project
@@ -28,11 +38,17 @@ class SDCCBuilder:
         @type  logger: Logger
         @param logger: The logger to report on build status
 
-        @type  rom_name: str
-        @param rom_name: The name of the output ROM file
-
         @type  target_system: str
         @param target_system: The target system to build for
+
+        @type  linker_config: Path
+        @param linker_config: The path to the linker configuration file
+
+        @type  output_binary: Path
+        @param output_binary: The name of the output binary/ROM file
+
+        @type  output_symbol: Path
+        @param output_symbol: The name of the output symbol file
 
         @type  include_paths: list[Path]
         @param include_paths: The list of include paths for the compiler and assembler
@@ -40,55 +56,39 @@ class SDCCBuilder:
 
         self.root_dir: Path   = root_dir
         self.logger  : Logger = logger
-        self.rom_name: str    = rom_name
-        self.system  : str    = target_system.lower()
-
-        if   self.system == 'gb'  : target = 'sm83:gb'
-        elif self.system == 'ap'  : target = 'sm83:ap'
-        elif self.system == 'duck': target = 'sm83:duck'
-        elif self.system == 'sms' : target = 'z80:sms'
-        elif self.system == 'gg'  : target = 'z80:gg'
-        elif self.system == 'msx' : target = 'z80:msxdos'
-        elif self.system == 'nes' : target = 'mos6502:nes'
-        else: raise ValueError(f'Unsupported target system: {target_system}')
 
         includes = []
         for path in include_paths:
-            includes.append(f'-I{str(path)}')
+            includes.append(f'-I{str(self.root_dir / path)}')
         includes = ' '.join(includes)
-
-        libs = []
-        for path in glob.glob(str(self.root_dir / 'libs' / '*.lib')):
-            libs.append('-l{path}')
-        libs = ' '.join(libs)
 
 
         # Define the compiler, assembler and linker to use
         self.env: Environment = Environment(
             CC   = 'sdcc',
             AS   = 'sdcc',
-            LINK = 'lcc',
+            LINK = 'sdcc',
         )
 
         # Define the compiler step
         compiler = Builder(
-            action     = f'$CC $CCFLAGS {includes} -m{target} -o $TARGET $SOURCE',
+            action     = f'$CC $CCFLAGS {includes} -m{target_system} -c -o $TARGET $SOURCE',
             src_suffix = '.c',
-            suffix     = '.s'
+            suffix     = '.o'
         )
 
         # Define the assembler step
         assembler = Builder(
-            action     = f'$AS $ASFLAGS {includes} -m{target} -o $TARGET $SOURCE',
+            action     = f'$AS $ASFLAGS {includes} -m{target_system} -c -o $TARGET $SOURCE',
             src_suffix = '.s',
             suffix     = '.o'
         )
 
         # Define the linker step
         linker = Builder(
-            action     = f'$LINK $LINKFLAGS {libs} -m{target} -o $TARGET $SOURCES',
+            action     = f'$LINK $LINKFLAGS -m{target_system} -o $TARGET $SOURCES',
             src_suffix = '.o',
-            suffix     = f'.{self.system}'
+            suffix     = self.out_bin.suffix
         )
 
         self.env.Append(BUILDERS = {

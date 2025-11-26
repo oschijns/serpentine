@@ -13,7 +13,8 @@ class JumpTrajectory:
         height  : float | None,
         time    : float | None,
         impulse : float | None,
-        gravity : float | None):
+        gravity : float | None
+    ):
 
         # Check which parameters where provided
         mask = 0b0000
@@ -69,3 +70,18 @@ class JumpTrajectory:
 
         else:
             raise Exception("Unsupported combination of parameters where provided")
+
+
+class HorizontalMove:
+
+    # Compute horizontal motion
+    def __init__(self,
+        move_speed  : float,
+        jump_range  : float,
+        aerial_ratio: float = 0.5
+    ):
+        self.move_speed = move_speed
+        self.jump_range = jump_range
+
+        self.time_asc  = jump_range * aerial_ratio         / move_speed
+        self.time_desc = jump_range * (1.0 - aerial_ratio) / move_speed

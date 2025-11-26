@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!target/env/bin/python3
 
 """
     Given a tileset, generate variation based on the number of palettes available on the target system.

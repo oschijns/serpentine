@@ -1,6 +1,7 @@
 """
-    Preconfigured builder for cc65 projects.
+    Preconfigured builder for RGBDS projects.
 """
+
 
 import re
 from pathlib           import Path
@@ -9,22 +10,21 @@ from SCons.Builder     import Builder
 from SCons.Environment import Environment
 
 
-# Define a process for building cc65 projects
-class CC65Builder:
+# Define a process for building rgbds projects
+class RGBDSBuilder:
 
-    # Define a process for building a cc65 project
+    # Define a process for building a rgbds project
     def __init__(self,
         root_dir     : Path,
         logger       : Logger,
-        linker_config: Path,
         output_binary: Path,
+        linker_script: Path | None = None,
         output_symbol: Path | None = None,
-        target_cpu   : str         = '6502',
+        output_map   : Path | None = None,
         include_paths: list[Path]  = []
     ):
         """
-        Create a builder to compile, assemble and link cc65 projects.
-        Supports '6502' and '65c02' CPUs.
+        Create a builder to compile, assemble and link rgbds projects.
 
         @type  root_dir: Path
         @param root_dir: The root directory of the project

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!target/env/bin/python3
 
 """
     Given a tileset, generate a binary representation (bitplanes).

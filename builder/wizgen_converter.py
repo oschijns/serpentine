@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!target/env/bin/python3
 
 """
     Read an assembly script and convert it to Wiz assembly syntax.

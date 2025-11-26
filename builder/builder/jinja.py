@@ -19,8 +19,6 @@ class JinjaBuilder:
     def __init__(self,
         root_dir : Path,
         logger   : Logger,
-        source   : str = 'src',
-        target   : str = 'source'
     ):
         """
         Create a jinja builder to render templates into source files
@@ -30,21 +28,14 @@ class JinjaBuilder:
 
         @type  logger: Logger
         @param logger: The logger to report on build status
-
-        @type  source: str
-        @param source: Surcharge the location where to read user's scripts
-
-        @type  target: str
-        @param target: Surcharge the location where to write rendered scripts
         """
 
         self.root_dir: Path   = root_dir
         self.logger  : Logger = logger
 
         # Define where to look for templates and where to output rendered sources
-        self.dir_input    : Path = self.root_dir / source
-        self.dir_generated: Path = self.root_dir / 'target' / 'templates'
-        self.dir_output   : Path = self.root_dir / 'target' / target
+        self.dir_input : Path = self.root_dir / 'src'
+        self.dir_output: Path = self.root_dir / 'target' / 'source'
 
         # Create the jinja environment
         loader: FileSystemLoader = FileSystemLoader([

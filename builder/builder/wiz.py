@@ -12,14 +12,12 @@ from SCons.Environment import Environment
 # Compile a wiz project
 class WizBuilder:
 
-    # Identify the target system based on the ROM extension
-    _ROM_FILE = re.compile(r'(?P<name>\S+)\.(?P<ext>\w+)$')
-
     # Initialize the wiz builder with a configuration
     def __init__(self,
         root_dir     : Path,
         logger       : Logger,
-        rom_name     : str,
+        output_binary: Path,
+        source_path  : Path = Path('src'),
         target_system: str = '',
     ):
         """
@@ -40,14 +38,8 @@ class WizBuilder:
 
         self.root_dir: Path   = root_dir
         self.logger  : Logger = logger
-        self.rom_name: str    = rom_name
-        self.system  : str    = target_system.lower()
-
-        # Get the rom extension
-        m = self._JINJA_FILE.search(rom_name)
-        if m is None:
-            raise Exception(f'Could not identify the ROM extension {rom_name}')
-        ext: str = m.group('ext')
+        
+        
 
         # If target system was not set, use the rom extension
         if self.system == '':
@@ -56,19 +48,15 @@ class WizBuilder:
         # If we are compiling a SNES project, we have two compilation steps instead of one
         self.is_snes: bool = False
 
-        if self.system in ['c64', 'nes', 'appleII', 'a2600', 'a5200', 'a7800']:
-            cpu = '6502'
-        elif self.system in ['pce']:
-            cpu = 'huc6280'
-        elif self.system == ['sms', 'gg', 'msx', 'zx']:
-            cpu = 'z80'
-        elif self.system == ['gb', 'gbc']:
-            cpu = 'gb'
-        elif self.system == 'snes':
+        if self.system == 'snes':
             cpu = 'wdc65816'
             self.is_snes = True
-        else:
-            raise ValueError(f'Unsupported target system: {target_system}')
+        elif self.system in ['nes', 'c64', 'appleII'  ]: cpu = '6502'
+        elif self.system in ['a2600', 'a5200', 'a7800']: cpu = '6502'
+        elif self.system in ['pce'                    ]: cpu = 'huc6280'
+        elif self.system in ['sms', 'gg', 'msx', 'zx' ]: cpu = 'z80'
+        elif self.system in ['gb', 'gbc'              ]: cpu = 'gb'
+        else: raise ValueError(f'Unsupported target system: {target_system}')
 
         # Define where to look for templates and where to output rendered sources
         dir_main  = str(self.root_dir / 'src')
@@ -115,5 +103,5 @@ class WizBuilder:
     def _compile_sources(self, source: str, step: str):
         file_in  = str(self.root_dir / source   / 'main.wiz')
         file_out = str(self.root_dir / 'target' / 'cache' / 'spc_main.bin')
-        self.env['step'](file_out, file_in)
+        self.env[step](file_out, file_in)
         self.logger.info(f'Compiled {file_in}')
