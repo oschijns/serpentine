@@ -13,6 +13,7 @@ def cut_image_into_tiles(
     image     : ndarray,
     palettes  : ndarray,
     tile_size : tuple[int, int],
+    origin    : tuple[int, int] = (0, 0)
     ) -> tuple[ndarray, ndarray]:
     """
     Reshape the image into a matrix of tiles of size width x height.
@@ -26,27 +27,31 @@ def cut_image_into_tiles(
     @type  tile_size: (int, int)
     @param tile_size: Height and width of a tile
 
+    @type  origin: (int, int)
+    @param origin: Origin of the image (for debugging)
+
     @rtype:   (ndarray (mh, mw, th, tw) uint8, ndarray (mh, mw) uint8)
     @returns: The image split into tiles with indexed pixels and a map of palette indexes
     """
 
     # Prepare the output buffer
-    tile_h  = tile_size[0]
-    tile_w  = tile_size[1]
-    out_h   = image.shape[0] // tile_h
-    out_w   = image.shape[1] // tile_w
-    output  = np.zeros((out_h, out_w, tile_h, tile_w), np.uint8)
-    pal_map = np.zeros((out_h, out_w), np.uint8)
+    tile_h : int = tile_size[0]
+    tile_w : int = tile_size[1]
+    out_h  : int = image.shape[0] // tile_h
+    out_w  : int = image.shape[1] // tile_w
+    output : ndarray = np.zeros((out_h, out_w, tile_h, tile_w), np.uint8)
+    pal_map: ndarray = np.zeros((out_h, out_w), np.uint8)
 
     # Copy each RGB pixel from the input image to its new location
     for iy in prange(out_h):
         for ix in prange(out_w):
             # Extract an RGB tile from the input image
-            y0 = iy * tile_h ; y1 = y0 + tile_h
-            x0 = ix * tile_w ; x1 = x0 + tile_w
+            y0: int = iy * tile_h ; y1: int = y0 + tile_h
+            x0: int = ix * tile_w ; x1: int = x0 + tile_w
 
             # Convert it into an indexed tile
-            (tile, pal_index) = identify_palette(image[y0:y1, x0:x1], palettes)
+            tile_pos: tuple[int, int, int, int] = (origin[0], origin[1], + ix, iy)
+            (tile, pal_index) = identify_palette(image[y0:y1, x0:x1], palettes, tile_pos)
             output [iy, ix] = tile
             pal_map[iy, ix] = pal_index
 
@@ -73,7 +78,7 @@ def reshape_tileset(
     @rtype: ndarray (tc, th, tw) uint8
     @returns: The reshaped tileset
     """
-    row_length = tilemap.shape[1]
+    row_length: int = tilemap.shape[1]
 
     # Allocate a buffer to store the generated tileset
     tileset = np.zeros(set_shape, np.uint8)
@@ -89,7 +94,11 @@ def reshape_tileset(
 # identify a matching palette to use. If one is found, return the tile where each
 # pixel is identified as an index.
 @njit(fastmath=True)
-def identify_palette(tile: ndarray, palettes: ndarray) -> tuple[ndarray, int]:
+def identify_palette(
+    tile     : ndarray, 
+    palettes : ndarray, 
+    tile_pos : tuple[int, int, int, int],
+) -> tuple[ndarray, int]:
     """
     Try to find a palette that matches with the tile
 
@@ -99,42 +108,45 @@ def identify_palette(tile: ndarray, palettes: ndarray) -> tuple[ndarray, int]:
     @type  palettes: ndarray (pc, ps, 3) uint8
     @param palettes: The palette convert pixels from RGB to index
 
+    @type  tile_pos: tuple[int, int, int, int]
+    @param tile_pos: Position of the tile in the image (for debugging)
+
     @rtype:   (ndarray (th, tw) uint8, int)
     @returns: The tile with indexes and the index of the palette identified
     """
 
     # Prepare a storage area to find the best matching palette
-    pal_count = palettes.shape[0]
-    pal_size  = palettes.shape[1]
-    tile_h    = tile    .shape[0]
-    tile_w    = tile    .shape[1]
-    storage = np.full((pal_count, tile_h, tile_w), -1, np.int8)
+    pal_count: int = palettes.shape[0]
+    pal_size : int = palettes.shape[1]
+    tile_h   : int = tile    .shape[0]
+    tile_w   : int = tile    .shape[1]
+    storage: ndarray = np.full((pal_count, tile_h, tile_w), -1, np.int8)
 
     # For each palette defined
     for pi in prange(pal_count):
-        pal = palettes[pi]
+        pal: ndarray = palettes[pi]
 
         # For each pixel in the tile
         for ty in prange(tile_h):
             for tx in prange(tile_w):
-                pix = tile[ty, tx]
+                pix: ndarray = tile[ty, tx]
 
                 # Check if the pixel color is part of the palette
                 # And if it is the case, store the index of the color
                 for ci in prange(pal_size):
-                    color = pal[ci]
+                    color: ndarray = pal[ci]
                     if cmp_rgb(pix, color):
                         storage[pi, ty, tx] = ci
 
     # Now each storage cell should contains a tile definition where the pixel 
     # are identified using indexes. However only one may have no negative indexes.
     for idx in range(pal_count):
-        tile_def = storage[idx]
+        tile_def: int = storage[idx]
         if np.all(tile_def != -1):
             return (tile_def, idx)
 
     # Could not identify a palette for this tile
-    raise Exception("Could not identify a palette for the tile.")
+    raise Exception("Could not identify a palette for the tile.", tile_pos)
 
 
 
@@ -176,19 +188,19 @@ def reformat_tileset(
     """
 
     # Get layout
-    pal_count  = palettes.shape[0] if pal_variation else 1
-    tile_count = tileset .shape[0]
-    tile_h     = tileset .shape[1]
-    tile_w     = tileset .shape[2]
+    pal_count : int = palettes.shape[0] if pal_variation else 1
+    tile_count: int = tileset .shape[0]
+    tile_h    : int = tileset .shape[1]
+    tile_w    : int = tileset .shape[2]
 
     # Allocate a buffer to write the image
-    im_h  = tile_h * (tile_count // row_length) * pal_count
-    im_w  = tile_w * row_length
-    image = np.zeros((im_h, im_w, 3), np.uint8)
+    im_h: int = tile_h * (tile_count // row_length) * pal_count
+    im_w: int = tile_w * row_length
+    image: ndarray = np.zeros((im_h, im_w, 3), np.uint8)
 
     # Allocate a buffer to store a RGB tile
-    buffer = np.zeros((tile_h, tile_w, 3), np.uint8)
-    pal_offset = im_h // pal_count
+    buffer: ndarray = np.zeros((tile_h, tile_w, 3), np.uint8)
+    pal_offset: int = im_h // pal_count
 
     # For each palette defined
     for ip in prange(pal_count):
@@ -199,12 +211,12 @@ def reformat_tileset(
             # Convert each of its index back into a RGB value
             for ty in prange(tile_h):
                 for tx in prange(tile_w):
-                    color_index = tileset[it, ty, tx]
+                    color_index: int = tileset[it, ty, tx]
                     buffer[ty, tx] = palettes[ip, color_index]
 
             # Write it at the right location in the image
-            iy = (it // row_length) * tile_h + ip * pal_offset
-            ix = (it %  row_length) * tile_w
+            iy: int = (it // row_length) * tile_h + ip * pal_offset
+            ix: int = (it %  row_length) * tile_w
             image[iy : iy + tile_h, ix : ix + tile_w] = buffer
 
     # Return the tileset as an image
@@ -253,18 +265,18 @@ def extract_tileset(
     """
 
     # Get the size of the image to iterate on
-    map_h = tile_map.shape[0]
-    map_w = tile_map.shape[1]
+    map_h: int = tile_map.shape[0]
+    map_w: int = tile_map.shape[1]
 
     # Get the size of the tileset (number of individual tiles)
-    size = used_tiles.shape[0]
+    size: int = used_tiles.shape[0]
 
     # Get flipping options
-    flip_v = flipping[0]
-    flip_h = flipping[1]
+    flip_v: bool = flipping[0]
+    flip_h: bool = flipping[1]
 
     # Allocate 16 bits to account for systems which support more than 256 tiles
-    output = np.zeros((map_h, map_w, 3), np.uint16)
+    output: ndarray = np.zeros((map_h, map_w, 3), np.uint16)
 
     # Allocate a buffer to check if a given tile matches with one in the tileset
     # - (-1) : no match
@@ -272,12 +284,12 @@ def extract_tileset(
     # -   1  : match with vertical   flipping
     # -   2  : match with horizontal flipping
     # -   3  : match with both       flipping
-    buffer = np.full(size, -1, np.int8)
+    buffer: ndarray = np.full(size, -1, np.int8)
 
     # Iterate over each tile in the image
     for iy in prange(map_h):
         for ix in prange(map_w):
-            tile = tile_map[iy, ix]
+            tile: ndarray = tile_map[iy, ix]
 
             # Check if the tile is already in the tileset
             for it in prange(size):
@@ -290,9 +302,9 @@ def extract_tileset(
 
                     # prepare the reference tile with all flipping combinations
                     tile0: ndarray = tileset[it]
-                    tile1 = np.flipud(tile0)
-                    tile2 = np.fliplr(tile0)
-                    tile3 = np.flip(tile0)
+                    tile1: ndarray = np.flipud(tile0)
+                    tile2: ndarray = np.fliplr(tile0)
+                    tile3: ndarray = np.flip  (tile0)
 
                     # Given initial parameters, try to find a match
                     if np.array_equal(tile, tile0):
@@ -305,13 +317,13 @@ def extract_tileset(
                         buffer[it] = 0b11
 
             # get values to store in the output map
-            tile_index = -1
-            flipping   = -1
+            tile_index: int = -1
+            flipping  : int = -1
 
             # One (or more) of the tiles match
             if np.any(buffer != -1):
                 for it in range(size):
-                    has_match = buffer[it]
+                    has_match: int = buffer[it]
                     if has_match != -1:
                         tile_index = it
                         flipping   = has_match

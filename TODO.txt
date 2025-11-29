@@ -1,0 +1,2 @@
+
+tileset_packer_spritesheet.py has a bug if an animation uses more than one palette!

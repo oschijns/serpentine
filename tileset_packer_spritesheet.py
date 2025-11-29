@@ -11,8 +11,8 @@ import imageio.v3 as iio
 
 from os              import path
 from numpy           import ndarray
-from .tileset.system import System
-from .tileset.util   import cut_image_into_tiles, reformat_tileset, extract_tileset
+from tileset.system  import System
+from tileset.util    import cut_image_into_tiles, reformat_tileset, extract_tileset
 from dataclasses     import dataclass
 from configargparse  import ArgParser
 
@@ -125,6 +125,10 @@ class Frame:
     # Extract a sub portion of an image
     def extract(self, image: ndarray) -> ndarray:
         return image[self.y:self.y + self.h, self.x:self.x + self.w]
+
+    # Get the origin of the frame in the image
+    def origin(self) -> tuple[int, int]:
+        return (self.x, self.y)
 
     # Given an indexed map, convert it into a dictionary to be serialized
     def to_serial(self,
@@ -284,8 +288,8 @@ class Sequence:
         # generate frames
         for element in self.sequence:
             # extract the actual frame from the spritesheet and cut it into tiles
-            sub_img = element.extract(image)
-            (tile_map0, pal_map0) = cut_image_into_tiles(sub_img, palettes, system.tile_size())
+            sub_img: ndarray = element.extract(image)
+            (tile_map0, pal_map0) = cut_image_into_tiles(sub_img, palettes, system.tile_size(), element.origin())
 
             # create views over the maps with the various flipping combinations
             (tile_map1, pal_map1) = (np.flip(tile_map0, (0, 2)), np.flipud(pal_map0))
@@ -293,7 +297,7 @@ class Sequence:
             (tile_map3, pal_map3) = (np.flip(tile_map0), np.flip(pal_map0))
 
             # shortcut for quickly processing the tiles
-            flipping = system.flipping()
+            flipping: tuple[bool, bool] = system.flipping()
             func = lambda tile_map, pal_map: extract_tileset(
                 tile_map, pal_map, flipping, tileset, used_tiles)
 
@@ -338,10 +342,10 @@ class Sequence:
                 return None
 
         # process the frames
-        frames    = func(self.frames)
-        frames_v  = func(self.frames_flipped_v)
-        frames_h  = func(self.frames_flipped_h)
-        frames_vh = func(self.frames_flipped_vh)
+        frames   : list[dict] | None = func(self.frames)
+        frames_v : list[dict] | None = func(self.frames_flipped_v)
+        frames_h : list[dict] | None = func(self.frames_flipped_h)
+        frames_vh: list[dict] | None = func(self.frames_flipped_vh)
 
         # flip both vertically and horizontally
         if self.flip_v and self.flip_h:

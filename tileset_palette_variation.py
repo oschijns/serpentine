@@ -8,8 +8,8 @@ import sys
 import imageio.v3 as iio
 
 from numpy           import ndarray
-from .tileset.system import System
-from .tileset.util   import cut_image_into_tiles, reshape_tileset, reformat_tileset
+from tileset.system  import System
+from tileset.util    import cut_image_into_tiles, reshape_tileset, reformat_tileset
 from dataclasses     import dataclass
 from configargparse  import ArgParser
 

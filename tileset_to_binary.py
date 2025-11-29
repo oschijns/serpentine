@@ -12,8 +12,8 @@ import imageio.v3 as iio
 
 from numba           import njit, prange
 from numpy           import ndarray
-from .tileset.system import System
-from .tileset.util   import cut_image_into_tiles, reshape_tileset
+from tileset.system  import System
+from tileset.util    import cut_image_into_tiles, reshape_tileset
 from dataclasses     import dataclass
 from configargparse  import ArgParser
 
