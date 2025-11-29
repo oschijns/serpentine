@@ -1,4 +1,4 @@
-#!target/env/bin/python3
+#!.env/bin/python3
 
 """
     Read pixel art images and try to identify identical tiles.

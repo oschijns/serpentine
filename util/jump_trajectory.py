@@ -11,10 +11,10 @@ class JumpTrajectory:
 
     # Compute a trajectory from a set of four parameters
     def __init__(self,
-        height  : float | None,
-        time    : float | None,
-        impulse : float | None,
-        gravity : float | None
+        height  : float | None = None,
+        time    : float | None = None,
+        impulse : float | None = None,
+        gravity : float | None = None
     ):
 
         # Check which parameters where provided

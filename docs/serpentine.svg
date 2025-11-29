@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="128px" height="128px" xmlns:bx="https://boxy-svg.com">
+  <defs>
+    <bx:grid x="0" y="0" width="100" height="100" divisions="5"/>
+    <linearGradient gradientUnits="userSpaceOnUse" x1="250" y1="100" x2="250" y2="380" id="gradient-0" spreadMethod="pad" gradientTransform="matrix(0.999987, 0.005248, 0, 0.714286, -249.996704, 27.25946)">
+      <stop offset="0" style="stop-color: rgb(255, 223, 0);"/>
+      <stop offset="0.054" style="stop-color: rgb(255, 0, 98);"/>
+      <stop offset="0.491" style="stop-color: rgb(233, 31, 93);"/>
+      <stop offset="0.533" style="stop-color: rgb(77, 170, 230);"/>
+    </linearGradient>
+  </defs>
+  <path d="M 300 50 C 300 53.244 299.506 56.415 298.562 59.487 L 240 60 L 288.262 76.087 C 274.199 90.431 248.888 100 220 100 L 219.153 100 C 208.575 100 200 91.425 200 80.847 L 200 80 L 95 80 C 86.716 80 80 86.716 80 95 L 80 105 C 80 113.284 86.716 120 95 120 L 265 120 C 273.284 120 280 126.716 280 135 L 280 265 C 280 273.284 273.284 280 265 280 L 100 280 C 44.772 280 0 266.569 0 250 C 0 233.431 44.772 220 100 220 L 205 220 C 213.284 220 220 213.284 220 205 L 220 195 C 220 186.716 213.284 180 205 180 L 35 180 C 26.716 180 20 173.284 20 165 L 20 35 C 20 26.716 26.716 20 35 20 L 200 20 L 200 19.153 C 200 8.575 208.575 0 219.153 0 L 220 0 C 264.183 0 300 22.386 300 50 Z M 250 20 C 244.477 20 240 24.477 240 30 C 240 35.523 244.477 40 250 40 C 255.523 40 260 35.523 260 30 C 260 24.477 255.523 20 250 20 Z" style="fill: url(&quot;#gradient-0&quot;); fill-rule: nonzero;"/>
+</svg>

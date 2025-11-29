@@ -5,7 +5,7 @@
 .sconsign.dblite
 
 # Python cache
-env/
+.env/
 **/__pycache__/
 
 # NPM cache

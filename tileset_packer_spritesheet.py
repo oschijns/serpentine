@@ -1,4 +1,4 @@
-#!target/env/bin/python3
+#!.env/bin/python3
 
 """
     Read Aseprite exports' to generate a packed tileset and a definition file for metasprites.
