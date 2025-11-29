@@ -3,7 +3,6 @@
 """
 
 import math
-
 from numpy  import ndarray
 from typing import Self
 

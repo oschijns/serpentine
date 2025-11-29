@@ -9,12 +9,12 @@ import json
 import numpy      as np
 import imageio.v3 as iio
 
-from os             import path
-from numpy          import ndarray
-from tileset.system import System
-from tileset.util   import cut_image_into_tiles, reformat_tileset, extract_tileset
-from dataclasses    import dataclass
-from configargparse import ArgParser
+from os              import path
+from numpy           import ndarray
+from .tileset.system import System
+from .tileset.util   import cut_image_into_tiles, reformat_tileset, extract_tileset
+from dataclasses     import dataclass
+from configargparse  import ArgParser
 
 
 def main():

@@ -2,8 +2,8 @@
     Serialize a sequence of bytes into ASM syntax
 """
 
-from numpy               import ndarray
-from util.text_formatter import TextFormatter
+from numpy           import ndarray
+from .text_formatter import TextFormatter
 
 
 # Serialize buffers of data using assembly syntax

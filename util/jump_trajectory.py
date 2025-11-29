@@ -2,7 +2,6 @@
     Compute a ballistic trajectory
 """
 
-
 from math import sqrt
 
 
