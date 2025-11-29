@@ -5,8 +5,9 @@ Set of helper tools for building games for retro consoles.
 
 ## Content
 
-The toolbox mostly contains Python scripts for converting data into formats 
-compatible with the target system.
+The toolbox mostly contains scripts for converting data into formats compatible 
+with the target system. Scripts are mostly made in Python so that they can be 
+easily used with *Scons* build system and *Jinja2* templating.
 Here is a short overview of the tools offered:
 - `tileset_packer_spritesheet.py` Converts *Aseprite* animations into a tileset with metadata.
 - `tileset_packer_tilemap.py` Converts generic ascii art into a tileset.
@@ -16,14 +17,13 @@ Here is a short overview of the tools offered:
 - `serial_to_asm.py` Generates *ASM* syntax for embedding arbitrary data.
 - `serial_to_lang.py` Generates *C* or *Wiz* syntax for embedding arbitrary data.
 - `text_formatter.py` Converts *ASCII* character set to an arbitrary character set.
+- `jinja_build.py` Reads a *Jinja2* template file and generate a source file for the next build step.
 
 Not yet complete
 - `famistudio_parser.py` Convert *FamiStudio* text file format into *JSON*.
 - `music` For parsing *VGM* files (require *nodeJS*).
 - `dialog` For parsing *YarnSpinner* scripts (require *.NET*).
 
-- *Jinja2* Introduces macro programming into language that do not support it.
-- *SCons* Build system for ordering build steps.
 
 
 ## Initialize
