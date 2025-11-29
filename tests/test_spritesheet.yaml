@@ -1,0 +1,7 @@
+# Test tileset_packer_spritesheet.py
+---
+input: ["./tests/animation.json"]
+palette: ./tests/palette.png
+system: nes
+output-json: ./tests/output/spritesheet.json
+output-tileset: ./tests/output/spritesheet.png

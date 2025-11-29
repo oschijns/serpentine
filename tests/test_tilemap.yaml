@@ -1,0 +1,8 @@
+# Test tileset_packer_tilemap.py
+---
+input: ./tests/serpentine.png
+palette: ./tests/palette.png
+charset: ./tests/charset.png
+charset-size: 36
+system: nes
+output: ./tests/output/tileset.png

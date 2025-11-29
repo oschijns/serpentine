@@ -1,5 +1,0 @@
-use yarn-spinner
-parse a yarn spinner script to extract relevant data and conditions
-provide it to python using pythonnet
-let python serialize the data
-

@@ -1,0 +1,6 @@
+# Test tileset_palette_variation.py
+---
+input: ./tests/tileset.png
+palette: ./tests/palette.png
+system: nes
+output: ./tests/output/tileset_variations.png

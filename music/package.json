@@ -1,0 +1,15 @@
+{
+  "name": "serpentine-music-tool",
+  "version": "0.0.1",
+  "description": "Music converter for serpentine",
+  "keywords": [
+    "serpentine",
+    "asm",
+    "vgm"
+  ],
+  "author": "Olivier Schyns",
+  "license": "MIT",
+  "dependencies": {
+    "vgm-parser": "^0.12.0-beta.0"
+  }
+}
